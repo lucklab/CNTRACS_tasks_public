@@ -53,31 +53,24 @@ End time - 255
 -kpw
 '''
 
-## Import key parts of the PsychoPy library:
+## Import
 from psychopy import visual, monitors, core, event, sound, data, gui, prefs
 prefs.general['audioLib'] = ['pyo']
-from psychopy.tools.filetools import fromFile, toFile
-import math, random, numpy, os, glob, csv
+import math, random, numpy, os, glob
 import pandas as pd
-
-# EEG
+# for EEG triggers
 from psychopy import parallel
 import serial
 
-# make sure working directory is right
-os.chdir(os.path.dirname(os.path.abspath(__file__)))
-imageDirectory = 'Objects_160' #folder/directory the images are in, must contain exactly the images to be used
-
-# set a seed - makes everything not actually random. Randomize seed or take out to randomize order of trials
+# set a seed - makes everything not random over multiple runs. Randomize seed or take out to randomize order of trials across every run
 seed = 10000 # use 20000 for a separate version?
 random.seed(seed)
 
-## start a datafile
+# experiment info
 expInfo = {
     'Participant'   :   '---',
     'EEG Triggers?'      :   ['Yes','No'], #default to send triggers
     'Session'       :   '1',
-    'Version'       :   'A', #only one version
     'TrialsToAdminister':   'all',
     'BlockLength'   :   '8',
     'EncodingArrayDuration' :   6.0,
@@ -87,7 +80,7 @@ expInfo = {
     }
 
 # present a dialogue to change params
-dlg = gui.DlgFromDict(expInfo, title='Picture-Bar Pairs', fixed=['TrialsToAdminister','Version','EncodingArrayDuration','TaskFile','Date','Seed'], order=['Participant','Session','BlockLength'])
+dlg = gui.DlgFromDict(expInfo, title='Picture-Bar Pairs', fixed=['TrialsToAdminister','EncodingArrayDuration','TaskFile','Date','Seed'], order=['Participant','Session','BlockLength'])
 
 if dlg.OK:  # or if ok_data is not None
     ## Define a monitor
@@ -119,17 +112,22 @@ if dlg.OK:  # or if ok_data is not None
 else:
     core.quit()  # the user hit cancel so exit
 
-# FOR EEG TRIGGERS  #
+### Set up 
+
+## For EEG triggers
 
 # send triggers?
 trigs = expInfo['EEG Triggers?'] # Yes -- if triggers should be sent
-portType = 'Serial' # or 'Parallel'
 
 # trigs should be set to 'Yes' if you are running with EEG
-# trigs can be set to 'No' for testing without triggers
+# trigs can be set to 'No' for testing without triggers while preserving timing
 
-# portType should be set to Parallel or Serial
+portType = 'Serial' # or 'Parallel'
 
+# portType should be set to Parallel or Serial, depending on set up
+# THE PORT ADDRESS BELOW NEEDS TO BE DEFINED FOR YOUR INDIVIDUAL SET UP
+
+# Define send trigger function
 if trigs =='Yes':
     if portType == 'Parallel':
         port = parallel.ParallelPort(address=0x3FF8) # has to be the correct address...
@@ -159,7 +157,140 @@ else:
     print('Set "trigs" variable to "Yes" or "No" at the top of script')
     core.quit()
 
-#                   #
+## For images
+
+# make sure working directory is right
+os.chdir(os.path.dirname(os.path.abspath(__file__))) # this sets the wd to be where the script is located 
+imageDirectory = 'Objects_160' #folder/directory the images are in, must contain exactly the images to be used
+
+imageFiles = []
+imageFiles = glob.glob(os.path.join(imageDirectory, '*.jpg'))  # where the image files get loaded
+
+trialImage = visual.ImageStim(win=mywin, image=imageFiles[0]) # temp image
+trialImage.size = [3.5,3.5] # set image size, in degrees
+backgroundRadius = math.sqrt((trialImage.size[0]/2)**2 + (trialImage.size[0]/2)**2) # set background size - smallest circle around square image
+
+# makes a dict with event codes for each image file based on csv file ( alphabetical order by filename )
+eventMap = pd.read_csv("image_codes.csv", sep=',', index_col = 0, squeeze = True).to_dict()
+
+## timing constants
+# in seconds
+durITI              =   1.5 #changed from 500 to 1500ms with 50ms jitter
+durFixITI           =   .5  # will be subtracted from durITI as salient fixation
+durEncoding         =   expInfo['EncodingArrayDuration']
+durRetention        =   4.0 #"Get ready to be tested!" appears onscreen for this period
+durBeforeWarning    =   5.0 #beep if no response after given duration
+durRespWindow       =   -1.0 #open-ended response window
+# in frames
+frameRate           =   mywin.getMsPerFrame(nFrames=60, showVisual=False, msg='', msDelay=0.0)
+framesITI           =   int(round(durITI/frameRate[0]*1000))
+framesFixITI        =   int(round(durFixITI/frameRate[0]*1000))
+framesEncoding      =   int(round(durEncoding/frameRate[0]*1000))
+framesRetention     =   int(round(durRetention/frameRate[0]*1000))
+framesBeforeWarning =   int(round(durBeforeWarning/frameRate[0]*1000))
+
+## Stimulus dimensions
+dvaArrayRadius = 3.5
+dvaArrayItemLength = 1
+dvaArrayItemWidth = 0.1
+
+## Array values
+setSizes            =[1]
+numTrialsPerBlock   =int(expInfo['BlockLength']) #pairs per block
+numTrialsPerSetSize =int(len(imageFiles)) #picture-bar pairs
+numBlocksBetweenBreaks = 10
+sortedTrials        =list(range(0,numTrialsPerSetSize*len(setSizes)))
+randomizedTrials    =list(range(0,numTrialsPerSetSize*len(setSizes)))
+random.shuffle(randomizedTrials) # uses a seed defined at the top
+
+numStimulusLocations=160 # currently set so that each of the 160 items can have their own location
+locations           =list(range(0,numStimulusLocations))
+colors              =['white']
+itemSeparation      = 360/numStimulusLocations # even spaced locations
+angles              = []
+angle_XYs           = []
+
+for x in range(0,numStimulusLocations):
+    angles.append(x*itemSeparation+1)
+    angle_X=math.cos((x*itemSeparation+1)*math.pi/180)*dvaArrayRadius
+    angle_Y=-math.sin((x*itemSeparation+1)*math.pi/180)*dvaArrayRadius
+    angle_XYs.append([angle_X, angle_Y])
+
+### Make trial list
+
+tList=[]
+
+for x in list(range(0,numTrialsPerSetSize*len(setSizes))):
+    ss  =   setSizes[math.trunc(randomizedTrials[x]/numTrialsPerSetSize)]  #set size
+    pl  =   [randomizedTrials[x]%numStimulusLocations]                     #probed location
+    pc  =   colors[randomizedTrials[x]%len(colors)]                        #probed color
+
+    if ss == 1:
+        ul  = []
+        uc  = []
+
+    else:
+        temp = range(0,len(locations))
+        temp.remove(pl[0])
+        ul  =   random.sample(temp,ss-1)                    #unprobed locations
+        uc  =   [i for i in colors if i != pc]              #unprobed colors
+
+    alll=   pl + ul
+    allc=   [pc] + uc
+    # jitter adding
+    tITI = durITI + (random.randrange(-50,50,1))*0.001
+    tframesITI           =   int(round(tITI/frameRate[0]*1000))
+
+    thisImage = imageFiles[randomizedTrials[x]][len(imageDirectory)+1:]# might need to change the 1 here depending on OS?
+    
+    tList.append({
+        'Participant'       :   expInfo['Participant'],
+        'Session'           :   expInfo['Session'],
+        'TaskFile'          :   expInfo['TaskFile'],
+        'Date'              :   expInfo['Date'],
+        'Seed'              :   expInfo['Seed'],
+        'BlockLength'       :   expInfo['BlockLength'],
+        'trialNumber'       :   sortedTrials[x],
+        'trialIndex'        :   randomizedTrials[x],
+        'trialWithinBlock'  :   sortedTrials[x]%numTrialsPerBlock,
+        'trialOnset'        :   0, #not yet set
+        'trialITIDuration':   0,
+        'OnsetRetention':  0,
+        'trialOnsetRespWindow': 0,
+        'trialTestOrder'    :   0,
+        'blockNumber'       :   math.trunc(sortedTrials[x]/numTrialsPerBlock),
+        'probedLocation'    :   pl,
+        'probedColor'       :   pc,
+        'allLocations'      :   alll,
+        'allColors'         :   allc,
+        'allOrientations'   :   [i * itemSeparation+1 for i in alll],
+        'probedXY'          :   angle_XYs[randomizedTrials[x]%numStimulusLocations],
+        'allXY'             :   [angle_XYs[i] for i in alll],
+        'image'             :   thisImage, # defined above
+        'imageFile'         :   imageFiles[randomizedTrials[x]], 
+        'itemTrigger'       :   eventMap.get(thisImage), # based on .csv file
+        'durITI'            :   tITI, #jittered
+        'durEncoding'       :   durEncoding,
+        'durRetention'      :   durRetention,
+        'durBeforeWarning'  :   durBeforeWarning,
+        'durRespWindow'     :   durRespWindow,
+        'framesITI'         :   tframesITI,
+        'framesEncoding'    :   framesEncoding,
+        'framesRetention'   :   framesRetention,
+        'framesBeforeWarning':  framesBeforeWarning,
+        'respLateWarning'   :   False,
+        'respLateWarning_encoding'   :   False,
+        'respRT_encoding'   :   0.0,
+        'respRT'            :   0.0,
+        'respXY'            :   [[0,0],[0,0]],
+        'respAngle'         :   0,
+        'probedAngle'       :   0,
+        'respError'         :   False,
+        'trialRespErrorTrigger':  0
+        })
+    
+
+## DEFINE FUNCTIONS
 
 # for getting angle differences
 def diff_wrap(a, b, half=True): # half means the direction doesnt matter
@@ -169,7 +300,6 @@ def diff_wrap(a, b, half=True): # half means the direction doesnt matter
         #flip the negative an positive so that right is positive
         angle = (180 - numpy.abs(numpy.abs(a - b) - 180)) * -1* numpy.sign(numpy.sin(numpy.radians(a-b)))
     return angle
-# #
 
 def give_instructions():
     mywin.flip()
@@ -250,60 +380,6 @@ def give_instructions():
     mywin.flip()
     sendTrigger(251) # participant advance onset trigger
     core.wait(2)
-
-
-
-def give_thanks():
-    mywin.flip()
-
-    thanksText = visual.TextStim(
-        win=mywin,
-        autoLog=False,
-        font='Arial',
-        pos=(0.0, 0.0),
-        rgb=None,
-        color=(1.0,1.0,1.0),
-        colorSpace='rgb',
-        opacity= 1.0,
-        contrast=1.0,
-        units='',
-        ori=0,
-        height=0.5,
-        antialias=True,
-        bold=False,
-        italic=False,
-        alignHoriz='center',
-        alignVert='center',
-        fontFiles=(),
-        wrapWidth=None,
-        flipHoriz=False,
-        flipVert=False,
-        name=None
-        )
-
-    thanksText.setText(
-        'Thank you for participating!\n\n'
-        'You have now finished the experiment, please alert the experimenter.\n\n'
-        'Click the mouse to exit the experiment.'
-        )
-
-    thanksText.setAutoDraw(True)
-    thanksText.draw()
-    mywin.flip()
-    
-    core.wait(1.5)
-    buttons = mouse.getPressed()
-
-    while buttons[0] == 0:
-        if event.getKeys(keyList=['escape', 'q']):
-            save_data()
-            mywin.close()
-            core.quit()
-        buttons = mouse.getPressed()
-
-        if buttons [0] > 0:
-            thanksText.setAutoDraw(False)
-            break
 
 def break_between_blocks():
     fixation0.draw()
@@ -402,7 +478,7 @@ def setup_trial():
     else:
         angle0= (2*math.pi + math.atan2(mY,mX))*180/math.pi
 
-    trial['probedAngle']=int(angle0)
+    trial['probedAngle']= angle0 # took out int() here
     trialImageFile = trial['imageFile'] # image file with path
     trialImage.setImage(trialImageFile) # set the image
 
@@ -545,7 +621,7 @@ def present_response_window(i,j):
                 else:
                     rA  = (2*math.pi + math.atan2(mY, mX))*180/math.pi
 
-                tested_trial['respAngle']=round(rA,1)
+                tested_trial['respAngle']=round(rA,2) # changed rount to 2 places
 
                 break
 
@@ -555,7 +631,6 @@ def present_response_window(i,j):
 
         event.clearEvents()
         
-    
     # response error
     tested_trial['respError'] = diff_wrap(tested_trial['probedAngle'],tested_trial['respAngle']) # function doing this defined above
     
@@ -583,7 +658,6 @@ def save_data():
             'TaskFile',
             'Date',
             'Session',
-            'Version',
             'Seed',
             'BlockLength',
             'durITI',
@@ -617,137 +691,59 @@ def save_data():
             ]
         )
 
-# Added for images 
-imageFiles = []
-imageFiles = glob.glob(os.path.join(imageDirectory, '*.jpg'))  # where the image files get loaded
+def give_thanks():
+    mywin.flip()
 
-trialImage = visual.ImageStim(win=mywin, image=imageFiles[0]) # temp image
-trialImage.size = [3.5,3.5] # set image size
+    thanksText = visual.TextStim(
+        win=mywin,
+        autoLog=False,
+        font='Arial',
+        pos=(0.0, 0.0),
+        rgb=None,
+        color=(1.0,1.0,1.0),
+        colorSpace='rgb',
+        opacity= 1.0,
+        contrast=1.0,
+        units='',
+        ori=0,
+        height=0.5,
+        antialias=True,
+        bold=False,
+        italic=False,
+        alignHoriz='center',
+        alignVert='center',
+        fontFiles=(),
+        wrapWidth=None,
+        flipHoriz=False,
+        flipVert=False,
+        name=None
+        )
 
-backgroundRadius = math.sqrt((trialImage.size[0]/2)**2 + (trialImage.size[0]/2)**2) # set background size - smallest circle around square image
+    thanksText.setText(
+        'Thank you for participating!\n\n'
+        'You have now finished the experiment, please alert the experimenter.\n\n'
+        'Click the mouse to exit the experiment.'
+        )
 
-# makes a dict with event codes for each image file based on csv file ( alphabetical order by filename )
-eventMap = pd.read_csv("image_codes.csv", sep=',', index_col = 0, squeeze = True).to_dict()
-
-#
-
-## timing constants
-durITI              =   1.5 #changed from 500 to 1500ms with 50ms jitter
-durFixITI           =   .5  # will be subtracted from durITI as salient fixation
-durEncoding         =   expInfo['EncodingArrayDuration']
-durRetention        =   4.0 #"Get ready to be tested!" appears onscreen for this period
-durBeforeWarning    =   5.0 #beep if no response after given duration
-durRespWindow       =   -1.0 #open-ended response window
-
-frameRate           =   mywin.getMsPerFrame(nFrames=60, showVisual=False, msg='', msDelay=0.0)
-framesITI           =   int(round(durITI/frameRate[0]*1000))
-framesFixITI        =   int(round(durFixITI/frameRate[0]*1000))
-framesEncoding      =   int(round(durEncoding/frameRate[0]*1000))
-framesRetention     =   int(round(durRetention/frameRate[0]*1000))
-framesBeforeWarning =   int(round(durBeforeWarning/frameRate[0]*1000))
-
-## Stimulus dimensions
-dvaArrayRadius = 3.5
-dvaArrayItemLength = 1
-dvaArrayItemWidth = 0.1
-
-## Array values
-setSizes            =[1]
-numTrialsPerBlock   =int(expInfo['BlockLength']) #pairs per block
-numTrialsPerSetSize =int(len(imageFiles)) #picture-bar pairs
-numBlocksBetweenBreaks = 10
-sortedTrials        =list(range(0,numTrialsPerSetSize*len(setSizes)))
-randomizedTrials    =list(range(0,numTrialsPerSetSize*len(setSizes)))
-random.shuffle(randomizedTrials) # uses a seed defined at the top
-
-numStimulusLocations=90
-locations           =list(range(0,numStimulusLocations))
-colors              =['white']
-itemSeparation      =4 #degrees arc
-angles              = []
-angle_XYs           = []
-
-for x in range(0,numStimulusLocations):
-    angles.append(x*itemSeparation+1)
-    angle_X=math.cos((x*itemSeparation+1)*math.pi/180)*dvaArrayRadius
-    angle_Y=-math.sin((x*itemSeparation+1)*math.pi/180)*dvaArrayRadius
-    angle_XYs.append([angle_X, angle_Y])
-
-## define parameters for each trial of each trial type
-
-tList=[]
-
-for x in list(range(0,numTrialsPerSetSize*len(setSizes))):
-    ss  =   setSizes[math.trunc(randomizedTrials[x]/numTrialsPerSetSize)]  #set size
-    pl  =   [randomizedTrials[x]%numStimulusLocations]                     #probed location
-    pc  =   colors[randomizedTrials[x]%len(colors)]                        #probed color
-
-    if ss == 1:
-        ul  = []
-        uc  = []
-
-    else:
-        temp = range(0,len(locations))
-        temp.remove(pl[0])
-        ul  =   random.sample(temp,ss-1)                    #unprobed locations
-        uc  =   [i for i in colors if i != pc]              #unprobed colors
-
-    alll=   pl + ul
-    allc=   [pc] + uc
-    # jitter adding
-    tITI = durITI + (random.randrange(-50,50,1))*0.001
-    tframesITI           =   int(round(tITI/frameRate[0]*1000))
-
-    thisImage = imageFiles[randomizedTrials[x]][len(imageDirectory)+1:]# might need to change the 1 here depending on OS?
+    thanksText.setAutoDraw(True)
+    thanksText.draw()
+    mywin.flip()
     
-    tList.append({
-        'Participant'       :   expInfo['Participant'],
-        'Session'           :   expInfo['Session'],
-        'Version'           :   expInfo['Version'],
-        'TaskFile'          :   expInfo['TaskFile'],
-        'Date'              :   expInfo['Date'],
-        'Seed'              :   expInfo['Seed'],
-        'BlockLength'       :   expInfo['BlockLength'],
-        'trialNumber'       :   sortedTrials[x],
-        'trialIndex'        :   randomizedTrials[x],
-        'trialWithinBlock'  :   sortedTrials[x]%numTrialsPerBlock,
-        'trialOnset'        :   0, #not yet set
-        'trialITIDuration':   0,
-        'OnsetRetention':  0,
-        'trialOnsetRespWindow': 0,
-        'trialTestOrder'    :   0,
-        'blockNumber'       :   math.trunc(sortedTrials[x]/numTrialsPerBlock),
-        'probedLocation'    :   pl,
-        'probedColor'       :   pc,
-        'allLocations'      :   alll,
-        'allColors'         :   allc,
-        'allOrientations'   :   [i * itemSeparation+1 for i in alll],
-        'probedXY'          :   angle_XYs[randomizedTrials[x]%numStimulusLocations],
-        'allXY'             :   [angle_XYs[i] for i in alll],
-        'image'             :   thisImage, # defined above
-        'imageFile'         :   imageFiles[randomizedTrials[x]], 
-        'itemTrigger'       :   eventMap.get(thisImage), # based on .csv file
-        'durITI'            :   tITI, #jittered
-        'durEncoding'       :   durEncoding,
-        'durRetention'      :   durRetention,
-        'durBeforeWarning'  :   durBeforeWarning,
-        'durRespWindow'     :   durRespWindow,
-        'framesITI'         :   tframesITI,
-        'framesEncoding'    :   framesEncoding,
-        'framesRetention'   :   framesRetention,
-        'framesBeforeWarning':  framesBeforeWarning,
-        'respLateWarning'   :   False,
-        'respLateWarning_encoding'   :   False,
-        'respRT_encoding'   :   0.0,
-        'respRT'            :   0.0,
-        'respXY'            :   [[0,0],[0,0]],
-        'respAngle'         :   0,
-        'probedAngle'       :   0,
-        'respError'         :   -1,
-        'trialRespErrorTrigger':  0
-        })
+    core.wait(1.5)
+    buttons = mouse.getPressed()
 
-## define trial stimuli
+    while buttons[0] == 0:
+        if event.getKeys(keyList=['escape', 'q']):
+            save_data()
+            mywin.close()
+            core.quit()
+        buttons = mouse.getPressed()
+
+        if buttons [0] > 0:
+            thanksText.setAutoDraw(False)
+            break
+
+## define stimuli
 breakScreen = visual.TextStim(
     win=mywin,
     autoLog=False,
@@ -870,7 +866,8 @@ backgroundCircle = visual.Circle(
     fillColorSpace = 'rgb255',
     fillColor = 255
     )
-#                 #
+
+##
 
 if expInfo['TrialsToAdminister']=='all':
     numTrialsRequested = len(tList)
@@ -936,7 +933,7 @@ give_thanks()
 
 sendTrigger(255) # end trigger
 
-# Finishing touches
+# End
 save_data()
 mywin.close()
 core.quit()

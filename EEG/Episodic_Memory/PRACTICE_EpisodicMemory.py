@@ -23,19 +23,14 @@ disorders78-81. This may help to identify either a shared psychopathology across
 differential associations with specific symptom domains, which can help to guide treatment interventions.
 '''
 
-# Import key parts of the PsychoPy library:
+# Import
 from psychopy import visual, monitors, core, event, sound, data, gui, prefs
 prefs.general['audioLib'] = ['pyo']
-from psychopy.tools.filetools import fromFile, toFile
 import math, random, numpy, os
 import glob 
 # EEG
 from psychopy import parallel
 import serial
-
-# make sure working directory is right
-os.chdir(os.path.dirname(os.path.abspath(__file__)))
-imageDirectory = 'Practice_30' #folder/directory the images are in, must contain exactly the images to be used
 
 # set a seed - makes everything not actually random. Randomize seed or take out to randomize order of trials
 seed = 10000 # use 20000 for a separate version?
@@ -46,7 +41,6 @@ expInfo = {
     'Participant'   :   'PRACTICE',
     'EEG Triggers?'      :   ['Yes','No'], #default to send triggers
     'Session'       :   '1',
-    'Version'       :   'A', #only one version
     'TrialsToAdminister':   '4',
     'BlockLength'   :   '4',
     'EncodingArrayDuration' :   6.0,
@@ -55,7 +49,7 @@ expInfo = {
     'Seed'          :   seed
     }
 # present a dialogue to change params
-dlg = gui.DlgFromDict(expInfo, title='Picture-Bar Pairs', fixed=['TrialsToAdminister','Version','EncodingArrayDuration','TaskFile','Date','Seed'], order=['Participant','Session','BlockLength'])
+dlg = gui.DlgFromDict(expInfo, title='Picture-Bar Pairs', fixed=['TrialsToAdminister','EncodingArrayDuration','TaskFile','Date','Seed'], order=['Participant','Session','BlockLength'])
 
 if dlg.OK:  # or if ok_data is not None
     ## Define a monitor
@@ -86,16 +80,23 @@ if dlg.OK:  # or if ok_data is not None
 else:
     core.quit()  # the user hit cancel so exit
 
-# FOR EEG TRIGGERS  #
-# trigs should be set to 'Yes' if you are running with EEG
-# trigs can be set to 'No' for testing without triggers
+
+### Set up 
+
+## For EEG triggers
 
 # send triggers?
 trigs = expInfo['EEG Triggers?'] # Yes -- if triggers should be sent
+
+# trigs should be set to 'Yes' if you are running with EEG
+# trigs can be set to 'No' for testing without triggers while preserving timing
+
 portType = 'Serial' # or 'Parallel'
 
-# portType should be set to Parallel or Serial
+# portType should be set to Parallel or Serial, depending on set up
+# THE PORT ADDRESS BELOW NEEDS TO BE DEFINED FOR YOUR INDIVIDUAL SET UP
 
+# Define send trigger function
 if trigs =='Yes':
     if portType == 'Parallel':
         port = parallel.ParallelPort(address=0x3FF8) # has to be the correct address...
@@ -106,7 +107,7 @@ if trigs =='Yes':
             port.setData(0)
 
     if portType == 'Serial':
-        port = serial.Serial('COM3') # correct address...
+        port = serial.Serial('COM3') # has to be the correct address...
 
         def sendTrigger(trigger):
             port.write(bytes([int(trigger)]))
@@ -124,8 +125,126 @@ elif trigs == 'No':
 else:
     print('Set "trigs" variable to "Yes" or "No" at the top of script')
     core.quit()
+    
+## For images
 
-#                   #
+# make sure working directory is right
+os.chdir(os.path.dirname(os.path.abspath(__file__))) # this sets the wd to be where the script is located 
+imageDirectory = 'Practice_30' #folder/directory the images are in, must contain exactly the images to be used
+
+imageFiles = []
+imageFiles = glob.glob(os.path.join(imageDirectory, '*.jpg'))  # where the image files get loaded
+
+trialImage = visual.ImageStim(win=mywin, image=imageFiles[0]) # temp image
+trialImage.size = [3.5,3.5] # set image size, in degrees
+backgroundRadius = math.sqrt((trialImage.size[0]/2)**2 + (trialImage.size[0]/2)**2) # set background size - smallest circle around square image
+
+## timing constants
+# in seconds
+durITI              =   1.5
+durFixITI           =   .5  # will be subtracted from durITI as salient fixation
+durEncoding         =   expInfo['EncodingArrayDuration']
+durRetention        =   4.0 #"Get ready to be tested!" appears onscreen for this period
+durBeforeWarning    =   5.0 #beep if no response after given duration
+durRespWindow       =   -1.0 #open-ended response window
+frameRate           =   mywin.getMsPerFrame(nFrames=60, showVisual=False, msg='', msDelay=0.0)
+# in frames
+framesITI           =   int(round(durITI/frameRate[0]*1000))
+framesFixITI        =   int(round(durFixITI/frameRate[0]*1000))
+framesEncoding      =   int(round(durEncoding/frameRate[0]*1000))
+framesRetention     =   int(round(durRetention/frameRate[0]*1000))
+framesBeforeWarning =   int(round(durBeforeWarning/frameRate[0]*1000))
+
+## Stimulus dimensions
+dvaArrayRadius = 3.5
+dvaArrayItemLength = 1
+dvaArrayItemWidth = 0.1
+
+## Array values
+setSizes            =[1]
+numTrialsPerBlock   =int(expInfo['BlockLength']) #pairs per block
+numTrialsPerSetSize =int(len(imageFiles)) #picture-bar pairs 
+numBlocksBetweenBreaks = 10
+sortedTrials        =list(range(0,numTrialsPerSetSize*len(setSizes)))
+randomizedTrials    =list(range(0,numTrialsPerSetSize*len(setSizes)))
+random.shuffle(randomizedTrials) # uses a seed defined at the top
+numStimulusLocations=30
+locations           =list(range(0,numStimulusLocations))
+colors              =['white']
+itemSeparation      = 360/numStimulusLocations # even spaced locations
+angles              = []
+angle_XYs           = []
+
+for x in range(0,numStimulusLocations):
+    angles.append(x*itemSeparation+1)
+    angle_X=math.cos((x*itemSeparation+1)*math.pi/180)*dvaArrayRadius
+    angle_Y=-math.sin((x*itemSeparation+1)*math.pi/180)*dvaArrayRadius
+    angle_XYs.append([angle_X, angle_Y])
+
+### Make trial list
+
+tList=[]
+
+for x in list(range(0,numTrialsPerSetSize*len(setSizes))):
+    ss  =   setSizes[math.trunc(randomizedTrials[x]/numTrialsPerSetSize)]  #set size
+    pl  =   [randomizedTrials[x]%numStimulusLocations]                      #probed location
+    pc  =   colors[randomizedTrials[x]%len(colors)]                        #probed color
+    if ss == 1:
+        ul  = []
+        uc  = []
+    else:
+        temp = range(0,len(locations))
+        temp.remove(pl[0])
+        ul  =   random.sample(temp,ss-1)                    #unprobed locations
+        uc  =   [i for i in colors if i != pc]              #unprobed colors
+    alll=   pl + ul
+    allc=   [pc] + uc
+    tList.append({
+        'Participant'       :   expInfo['Participant'],
+        'Session'           :   expInfo['Session'],
+        'TaskFile'          :   expInfo['TaskFile'],
+        'Date'              :   expInfo['Date'],
+        'Seed'              :   expInfo['Seed'],
+        'BlockLength'       :   expInfo['BlockLength'],
+        'trialNumber'       :   sortedTrials[x],
+        'trialIndex'        :   randomizedTrials[x],
+        'trialWithinBlock'  :   sortedTrials[x]%numTrialsPerBlock,
+        'trialOnset'        :   0, #not yet set
+        'trialOnsetEncoding':   0,
+        'trialOnsetRetention':  0,
+        'trialOnsetRespWindow': 0,
+        'trialTestOrder'    :   0,
+        'blockNumber'       :   math.trunc(sortedTrials[x]/numTrialsPerBlock),
+        'probedLocation'    :   pl,
+        'probedColor'       :   pc,
+        'allLocations'      :   alll,
+        'allColors'         :   allc,
+        'allOrientations'   :   [i * itemSeparation+1 for i in alll],
+        'probedXY'          :   angle_XYs[randomizedTrials[x]%numStimulusLocations],
+        'allXY'             :   [angle_XYs[i] for i in alll],
+        'imageFile'         :   imageFiles[randomizedTrials[x]],
+        'durITI'            :   durITI,
+        'durEncoding'       :   durEncoding,
+        'durRetention'      :   durRetention,
+        'durBeforeWarning'  :   durBeforeWarning,
+        'durRespWindow'     :   durRespWindow,
+        'framesITI'         :   framesITI,
+        'framesEncoding'    :   framesEncoding,
+        'framesRetention'   :   framesRetention,
+        'framesBeforeWarning':  framesBeforeWarning,
+        'respLateWarning'   :   False,
+        'respLateWarning_encoding'   :   False,
+        'respRT_encoding'   :   0.0,
+        'respRT'            :   0.0,
+        'respXY'            :   [[0,0],[0,0]],
+        'respAngle'         :   0,
+        'probedAngle'       :   0
+        })
+    
+
+## DEFINE FUNCTIONS
+
+# uses slides in folder 'InstructionSlides'
 def give_instructions():
     mywin.flip()
     
@@ -157,61 +276,13 @@ def give_instructions():
         core.wait(.20)
         event.clearEvents()
 
-def give_thanks():
-    mywin.flip()
-    thanksText = visual.TextStim(
-        win=mywin,
-        autoLog=False,
-        font='Arial',
-        pos=(0.0, 0.0),
-        rgb=None,
-        color=(1.0,1.0,1.0),
-        colorSpace='rgb',
-        opacity= 1.0,
-        contrast=1.0,
-        units='',
-        ori=0,
-        height=0.5,
-        antialias=True,
-        bold=False,
-        italic=False,
-        alignHoriz='center',
-        alignVert='center',
-        fontFiles=(),
-        wrapWidth=None,
-        flipHoriz=False,
-        flipVert=False,
-        name=None
-        )
-    thanksText.setText(
-        'Thank you for participating!\n\n'
-        'You have now finished the practice, do you have any questions?\n\n'
-        'Click the mouse to exit the practice.'
-        )
-    thanksText.setAutoDraw(True)
-    thanksText.draw()
-   
-    mywin.flip()
-   
-    core.wait(1.5)
-    buttons = mouse.getPressed()
-    while buttons[0] == 0:
-        if event.getKeys(keyList=['escape', 'q']):
-            save_data()
-            mywin.close()
-            core.quit()
-        buttons = mouse.getPressed()
-        if buttons [0] > 0:
-            thanksText.setAutoDraw(False)
-            break
-
 def break_between_blocks():
     fixation0.draw()
     mywin.flip()
     buttons = mouse.getPressed()
     while buttons[0] == 0:
         if event.getKeys(keyList=['escape', 'q']):
-            save_data()
+            #save_data() # not save practice data
             mywin.close()
             core.quit()
         buttons = mouse.getPressed()
@@ -255,7 +326,7 @@ def long_break_between_blocks(breakNum):
     buttons = mouse.getPressed()
     while buttons[0] == 0:
         if event.getKeys(keyList=['escape', 'q']):
-            save_data()
+            #save_data() not save practice data
             mywin.close()
             core.quit()
         buttons = mouse.getPressed()
@@ -324,7 +395,7 @@ def present_encoding_array():
     while clock.getTime() - (trial['trialOnset'] + trial['trialOnsetEncoding']) <= trial['durEncoding']:
         while correctClicks == 0 and clock.getTime() - (trial['trialOnset'] + trial['trialOnsetEncoding']) <= trial['durEncoding']:
             if event.getKeys(keyList=['escape', 'q']):
-                save_data()
+                #save_data() # not save practice data
                 mywin.close()
                 core.quit()
             backgroundCircle.draw()
@@ -371,7 +442,7 @@ def present_response_window(i,j):
     tested_trial['trialTestOrder'] = j
     rawOnset=clock.getTime()
     if event.getKeys(keyList=['escape', 'q']):
-        save_data()
+        #save_data() # not save practice data
         mywin.close()
         core.quit()
     while tested_trial['respRT'] == 0:
@@ -385,7 +456,7 @@ def present_response_window(i,j):
         fixation0.draw()
         mywin.flip()
         if event.getKeys(keyList=['escape', 'q']):
-            save_data()
+            #save_data() # not save practice data
             mywin.close()
             core.quit()
         if mouse.isPressedIn(outerResponseLimit, buttons=[0]):
@@ -422,7 +493,6 @@ def save_data():
             'TaskFile',
             'Date',
             'Session',
-            'Version',
             'Seed',
             'BlockLength',
             'durITI',
@@ -452,118 +522,56 @@ def save_data():
             'probedAngle'
             ]
         )
-# Added for images 
-imageFiles = []
-imageFiles = glob.glob(os.path.join(imageDirectory, '*.jpg'))  # where the image files get loaded
 
-trialImage = visual.ImageStim(win=mywin, image=imageFiles[0]) # temp image
-trialImage.size = [3.5,3.5] # set image size
-backgroundRadius = math.sqrt((trialImage.size[0]/2)**2 + (trialImage.size[0]/2)**2) # set background size - smallest circle around square image
-
-#                 #
-## timing constants
-durITI              =   1.5
-durFixITI           =   .5  # will be subtracted from durITI as salient fixation
-durEncoding         =   expInfo['EncodingArrayDuration']
-durRetention        =   4.0 #"Get ready to be tested!" appears onscreen for this period
-durBeforeWarning    =   5.0 #beep if no response after given duration
-durRespWindow       =   -1.0 #open-ended response window
-frameRate           =   mywin.getMsPerFrame(nFrames=60, showVisual=False, msg='', msDelay=0.0)
-framesITI           =   int(round(durITI/frameRate[0]*1000))
-framesFixITI        =   int(round(durFixITI/frameRate[0]*1000))
-framesEncoding      =   int(round(durEncoding/frameRate[0]*1000))
-framesRetention     =   int(round(durRetention/frameRate[0]*1000))
-framesBeforeWarning =   int(round(durBeforeWarning/frameRate[0]*1000))
-
-## Stimulus dimensions
-dvaArrayRadius = 3.5
-dvaArrayItemLength = 1
-dvaArrayItemWidth = 0.1
-
-## Array values
-setSizes            =[1]
-numTrialsPerBlock   =int(expInfo['BlockLength']) #pairs per block
-numTrialsPerSetSize =int(len(imageFiles)) #picture-bar pairs 
-numBlocksBetweenBreaks = 10
-sortedTrials        =list(range(0,numTrialsPerSetSize*len(setSizes)))
-randomizedTrials    =list(range(0,numTrialsPerSetSize*len(setSizes)))
-random.shuffle(randomizedTrials)
-numStimulusLocations=30
-locations           =list(range(0,numStimulusLocations))
-colors              =['white']
-itemSeparation      =4 * (90/numStimulusLocations) #degrees arc
-angles              = []
-angle_XYs           = []
-for x in range(0,numStimulusLocations):
-    angles.append(x*itemSeparation+1)
-    angle_X=math.cos((x*itemSeparation+1)*math.pi/180)*dvaArrayRadius
-    angle_Y=-math.sin((x*itemSeparation+1)*math.pi/180)*dvaArrayRadius
-    angle_XYs.append([angle_X, angle_Y])
-
-## define parameters for each trial of each trial type
-
-tList=[]
-
-for x in list(range(0,numTrialsPerSetSize*len(setSizes))):
-    ss  =   setSizes[math.trunc(randomizedTrials[x]/numTrialsPerSetSize)]  #set size
-    pl  =   [randomizedTrials[x]%numStimulusLocations]                      #probed location
-    pc  =   colors[randomizedTrials[x]%len(colors)]                        #probed color
-    if ss == 1:
-        ul  = []
-        uc  = []
-    else:
-        temp = range(0,len(locations))
-        temp.remove(pl[0])
-        ul  =   random.sample(temp,ss-1)                    #unprobed locations
-        uc  =   [i for i in colors if i != pc]              #unprobed colors
-    alll=   pl + ul
-    allc=   [pc] + uc
-    tList.append({
-        'Participant'       :   expInfo['Participant'],
-        'Session'           :   expInfo['Session'],
-        'Version'           :   expInfo['Version'],
-        'TaskFile'          :   expInfo['TaskFile'],
-        'Date'              :   expInfo['Date'],
-        'Seed'              :   expInfo['Seed'],
-        'BlockLength'       :   expInfo['BlockLength'],
-        'trialNumber'       :   sortedTrials[x],
-        'trialIndex'        :   randomizedTrials[x],
-        'trialWithinBlock'  :   sortedTrials[x]%numTrialsPerBlock,
-        'trialOnset'        :   0, #not yet set
-        'trialOnsetEncoding':   0,
-        'trialOnsetRetention':  0,
-        'trialOnsetRespWindow': 0,
-        'trialTestOrder'    :   0,
-        'blockNumber'       :   math.trunc(sortedTrials[x]/numTrialsPerBlock),
-        'probedLocation'    :   pl,
-        'probedColor'       :   pc,
-        'allLocations'      :   alll,
-        'allColors'         :   allc,
-        'allOrientations'   :   [i * itemSeparation+1 for i in alll],
-        'probedXY'          :   angle_XYs[randomizedTrials[x]%numStimulusLocations],
-        'allXY'             :   [angle_XYs[i] for i in alll],
-#        'image'             :   imageFiles[randomizedTrials[x]][len(imageDirectory)+2:], # might need to change the 2 here...
-        'imageFile'         :   imageFiles[randomizedTrials[x]],
-        'durITI'            :   durITI,
-        'durEncoding'       :   durEncoding,
-        'durRetention'      :   durRetention,
-        'durBeforeWarning'  :   durBeforeWarning,
-        'durRespWindow'     :   durRespWindow,
-        'framesITI'         :   framesITI,
-        'framesEncoding'    :   framesEncoding,
-        'framesRetention'   :   framesRetention,
-        'framesBeforeWarning':  framesBeforeWarning,
-        'respLateWarning'   :   False,
-        'respLateWarning_encoding'   :   False,
-        'respRT_encoding'   :   0.0,
-        'respRT'            :   0.0,
-        'respXY'            :   [[0,0],[0,0]],
-        'respAngle'         :   0,
-        'probedAngle'       :   0
-        })
-    
-
-## define trial stimuli
+def give_thanks():
+    mywin.flip()
+    thanksText = visual.TextStim(
+        win=mywin,
+        autoLog=False,
+        font='Arial',
+        pos=(0.0, 0.0),
+        rgb=None,
+        color=(1.0,1.0,1.0),
+        colorSpace='rgb',
+        opacity= 1.0,
+        contrast=1.0,
+        units='',
+        ori=0,
+        height=0.5,
+        antialias=True,
+        bold=False,
+        italic=False,
+        alignHoriz='center',
+        alignVert='center',
+        fontFiles=(),
+        wrapWidth=None,
+        flipHoriz=False,
+        flipVert=False,
+        name=None
+        )
+    thanksText.setText(
+        'Thank you for participating!\n\n'
+        'You have now finished the practice, do you have any questions?\n\n'
+        'Click the mouse to exit the practice.'
+        )
+    thanksText.setAutoDraw(True)
+    thanksText.draw()
+   
+    mywin.flip()
+   
+    core.wait(1.5)
+    buttons = mouse.getPressed()
+    while buttons[0] == 0:
+        if event.getKeys(keyList=['escape', 'q']):
+            #save_data() # not save practice data
+            mywin.close()
+            core.quit()
+        buttons = mouse.getPressed()
+        if buttons [0] > 0:
+            thanksText.setAutoDraw(False)
+            break
+        
+## define stimuli
 breakScreen = visual.TextStim(
     win=mywin,
     autoLog=False,
@@ -665,7 +673,7 @@ text0 = visual.TextStim(
     height=0.75,
     text='test'
     )
-# Added for image version #
+# Added for images
 backgroundCircle = visual.Circle(
     win=mywin,
     autoLog=False,
@@ -676,7 +684,7 @@ backgroundCircle = visual.Circle(
     fillColor = 255
     )
 
-#                          #
+##
 
 if expInfo['TrialsToAdminister']=='all':
     numTrialsRequested = len(tList)
@@ -719,7 +727,8 @@ for trial in trials:
         if trial['trialNumber'] != numTrialsRequested-1:
             long_break_between_blocks(blockNum)
 give_thanks()
-# Finishing touches
-#save_data()
+
+# End
+#save_data() # not save practice data
 mywin.close()
 core.quit()
