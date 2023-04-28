@@ -1,29 +1,55 @@
 # P R A C T I C E #
 # currently set to present 4 trials #
 '''
-3.1.3. Episodic Memory: Our team has also applied this
-model to episodic memory (EM) using the task shown in Fig.
-2C76. The participant sees a sequence of 8 word-bar location
-pairs, clicking on the location of each bar per word shown, and must store these pairs in memory.
-After a filled retention interval, the participant sees each word and must click on the location of the bar that was 
-originally paired with that word. The amount of information substantially exceeds WM capacity,
-and the information is therefore stored in EM (even though the memory is probed within
-1-2 minutes of the initial presentation). This procedure is then repeated several times with different words and
-locations. When the mixture model is applied to data from this task, it is possible to estimate the probability that
-a given pair was stored in EM, the precision of the EM representation, and the probability of a binding error
-(reporting the location associated with a different word). We have found that measures of EM precision are
-particularly sensitive for detecting memory impairments and hippocampal dysfunction in patient populations
-(see 49 for review). For example, Kolarik17, 77 examined the ability of patients with MTL damage to remember
-object locations and found a deficit only when they were required to report precise spatial locations. Similarly,
-Koen18 found that MTL lesion patients were significantly more impaired when the test required high-precision
-discriminations than low-precision discriminations, even when overall difficulty was controlled. Use of precision
-metrics to increase sensitivity to EM impairments and hippocampal dysfunction will provide an integrated
-understanding of the unique contribution that EM dysfunction makes to a range of affective and psychotic
-disorders78-81. This may help to identify either a shared psychopathology across diagnostic categories or show
-differential associations with specific symptom domains, which can help to guide treatment interventions.
+Episodic Memory
+
+The participant sees a sequence of 8 picture-bar location pairs, 
+clicks on the location of each bar per picture shown,
+and must store these pairs in memory.
+
+After a filled retention interval, the participant sees each picture again
+and must click on the location of the bar that was originally paired with that picture.
+
+The amount of information substantially exceeds WM capacity,
+and the information is therefore stored in EM 
+(even though the memory is probed within 1-2 minutes of the initial presentation).
+
+This procedure is then repeated several times with different pictures and locations.
+
+When the mixture model is applied to data from this task, it is possible to estimate the probability that
+a given pair was stored in EM, the precision of the EM representation, 
+and the probability of a binding error (reporting the location associated with a different word).
+
+
+This version of the task uses pictures, an earlier version used words instead.
+The pictures were gotten from --  "cvcl.mit.edu/MM/"
+
 '''
 
-# Import
+'''
+EEG TRIGGERS
+Each item is coded individually, 1-160, in alphabetical order of the file name. (using the file 'image_codes.csv')
+
+Block number is also coded individually, 170-190, in order of occurence
+
+For both blocks and items, the first code marks onset of encoding, the second marks testing onset
+
+Click during encoding = 199
+
+Response (click + response error) during testing = 200-245 (200 = +/-0-4 degress, 201 = +/-4-8degrees)
+
+#
+Recording reminder offset - 250
+Participant advanced start time - 251
+
+Break onset - 253
+Break offset - 254
+
+End time - 255
+
+-kpw
+'''
+# Import modules
 from psychopy import visual, monitors, core, event, sound, data, gui, prefs
 prefs.general['audioLib'] = ['pyo']
 import math, random, numpy, os
@@ -32,15 +58,21 @@ import glob
 from psychopy import parallel
 import serial
 
-# set a seed - makes everything not actually random. Randomize seed or take out to randomize order of trials
-seed = 10000 # use 20000 for a separate version?
+## Important: set seed for randomization. (for practice runs, defaults to same ordering)
+# The seed used by the CNTRACS group was 10000 always, meaning the 'randomization' was the same for all runs
+# To use this (and thus get the same exact version), un-comment the line below, and comment out the other seed line
+seed = 10000 # could use a different arbitrary number for a separate version that would be consistent across runs
+
+# To have the trial ordering random each run, have the line below un-commented
+#seed = int(random.uniform(1, 1000000))
+
+# Actually set the seed
 random.seed(seed)
 
 ## start a datafile
 expInfo = {
     'Participant'   :   'PRACTICE',
     'EEG Triggers?'      :   ['Yes','No'], #default to send triggers
-    'Session'       :   '1',
     'TrialsToAdminister':   '4',
     'BlockLength'   :   '4',
     'EncodingArrayDuration' :   6.0,
@@ -49,7 +81,7 @@ expInfo = {
     'Seed'          :   seed
     }
 # present a dialogue to change params
-dlg = gui.DlgFromDict(expInfo, title='Picture-Bar Pairs', fixed=['TrialsToAdminister','EncodingArrayDuration','TaskFile','Date','Seed'], order=['Participant','Session','BlockLength'])
+dlg = gui.DlgFromDict(expInfo, title='Picture-Bar Pairs', fixed=['TrialsToAdminister','EncodingArrayDuration','TaskFile','Date','Seed'], order=['Participant','BlockLength'])
 
 if dlg.OK:  # or if ok_data is not None
     ## Define a monitor
@@ -64,7 +96,7 @@ if dlg.OK:  # or if ok_data is not None
         autoLog=False,
         units='deg',
         screen=0, #screen=0 for primary monitor, screen=1 to display on secondary monitor
-        fullscr=True #fullscrn=False if window is small, True to take the full screen
+        fullscr=True
         )
     loadingScreen = visual.TextStim(
         win=mywin,
@@ -201,7 +233,6 @@ for x in list(range(0,numTrialsPerSetSize*len(setSizes))):
     allc=   [pc] + uc
     tList.append({
         'Participant'       :   expInfo['Participant'],
-        'Session'           :   expInfo['Session'],
         'TaskFile'          :   expInfo['TaskFile'],
         'Date'              :   expInfo['Date'],
         'Seed'              :   expInfo['Seed'],
@@ -492,7 +523,6 @@ def save_data():
             'Participant',
             'TaskFile',
             'Date',
-            'Session',
             'Seed',
             'BlockLength',
             'durITI',

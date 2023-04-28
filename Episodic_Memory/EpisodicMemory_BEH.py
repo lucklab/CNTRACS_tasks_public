@@ -1,52 +1,54 @@
 '''
-3.1.3. Episodic Memory: Our team has also applied this
-model to episodic memory (EM) using the task shown in Fig.
-2C76. The participant sees a sequence of 8 word-bar {picure-bar} location
-pairs, clicking on the location of each bar per word shown, and must store these pairs in memory.
-After a filled retention interval, the participant sees each word and must click on the location of the bar that was 
-originally paired with that word. The amount of information substantially exceeds WM capacity,
-and the information is therefore stored in EM (even though the memory is probed within
-1-2 minutes of the initial presentation). This procedure is then repeated several times with different words and
-locations. When the mixture model is applied to data from this task, it is possible to estimate the probability that
-a given pair was stored in EM, the precision of the EM representation, and the probability of a binding error
-(reporting the location associated with a different word). We have found that measures of EM precision are
-particularly sensitive for detecting memory impairments and hippocampal dysfunction in patient populations
-(see 49 for review). For example, Kolarik17, 77 examined the ability of patients with MTL damage to remember
-object locations and found a deficit only when they were required to report precise spatial locations. Similarly,
-Koen18 found that MTL lesion patients were significantly more impaired when the test required high-precision
-discriminations than low-precision discriminations, even when overall difficulty was controlled. Use of precision
-metrics to increase sensitivity to EM impairments and hippocampal dysfunction will provide an integrated
-understanding of the unique contribution that EM dysfunction makes to a range of affective and psychotic
-disorders78-81. This may help to identify either a shared psychopathology across diagnostic categories or show
-differential associations with specific symptom domains, which can help to guide treatment interventions.
-'''
+Episodic Memory
 
-'''
-This is a version of the task using pictures instead of words.
+The participant sees a sequence of 8 picture-bar location pairs, 
+clicks on the location of each bar per picture shown,
+and must store these pairs in memory.
+
+After a filled retention interval, the participant sees each picture again
+and must click on the location of the bar that was originally paired with that picture.
+
+The amount of information substantially exceeds WM capacity,
+and the information is therefore stored in EM 
+(even though the memory is probed within 1-2 minutes of the initial presentation).
+
+This procedure is then repeated several times with different pictures and locations.
+
+When a mixture model is applied to data from this task, it is possible to estimate the probability that
+a given pair was stored in EM, the precision of the EM representation, 
+and the probability of a binding error (reporting the location associated with a different word).
+
+
+This version of the task uses pictures, an earlier version used words instead.
 The pictures were gotten from --  "cvcl.mit.edu/MM/"
-There is only one present version instead of 2 (could make another version by setting a different seed)
-The presentation order is not randomized
 
+Note:
+This task is set up to run with just one set size (1)
+However there is some currently unused code in this script for running with trials at other set sizes (more bars than 1)
+I've chosen to leave this code here in case it's helpful for someone who wishes to modify the code for more set size conditions.
 '''
 
-## Import key parts of the PsychoPy library:
+## Import modules
 from psychopy import visual, monitors, core, event, sound, data, gui, prefs
 prefs.general['audioLib'] = ['pyo']
 import math, random, numpy, os, glob, csv
 import pandas as pd
 
-# make sure working directory is right
-os.chdir(os.path.dirname(os.path.abspath(__file__)))
-imageDirectory = 'Objects_160' #folder/directory the images are in, must contain exactly the images to be used
 
-# set a seed - makes everything not actually random. Randomize seed or take out to randomize order of trials
-seed = 10000 # use 20000 for a separate version?
+## Important: set seed for randomization.
+# The seed used by the CNTRACS group was 10000 always, meaning the 'randomization' was the same for all runs
+# To use this (and thus get the same exact version), un-comment the line below, and comment out the other seed line
+#seed = 10000 # could use a different arbitrary number for a separate version that would be consistent across runs
+
+# To have the trial ordering random each run, have the line below un-commented
+seed = int(random.uniform(1, 1000000))
+
+# Actually set the seed
 random.seed(seed)
 
 ## start a datafile
 expInfo = {
     'Participant'   :   '---',
-    'Session'       :   ['', '1', '2'],
     'TrialsToAdminister':   'all',
     'BlockLength'   :   '8',
     'EncodingArrayDuration' :   6.0,
@@ -58,16 +60,7 @@ expInfo = {
 # present a dialogue to change params
 dlg = gui.DlgFromDict(expInfo, title='Picture-Bar Pairs', 
                       fixed=['TrialsToAdminister','EncodingArrayDuration','TaskFile','Date','Seed','BlockLength'], 
-                      order=['Participant','Session'])
-
-## Check if session number is filled in with a number, quit if not
-while True:
-    try:
-        expInfo['Session'] = int(expInfo['Session'])
-        break
-    except ValueError:
-        print("Please enter a session number!")
-        core.quit()
+                      order=['Participant'])
         
 if dlg.OK:  # or if ok_data is not None
     ## Define a monitor
@@ -99,6 +92,139 @@ if dlg.OK:  # or if ok_data is not None
 else:
     core.quit()  # the user hit cancel so exit
 
+## For images
+
+# make sure working directory is right
+os.chdir(os.path.dirname(os.path.abspath(__file__))) # this sets the wd to be where the script is located 
+imageDirectory = 'Objects_160' #folder/directory the images are in, must contain exactly the images to be used
+
+imageFiles = []
+imageFiles = glob.glob(os.path.join(imageDirectory, '*.jpg'))  # where the image files get loaded
+
+trialImage = visual.ImageStim(win=mywin, image=imageFiles[0]) # temp image
+trialImage.size = [3.5,3.5] # set image size, in degrees
+
+backgroundRadius = math.sqrt((trialImage.size[0]/2)**2 + (trialImage.size[0]/2)**2) # set background size - smallest circle around square image
+
+# makes a dict with event codes for each image file based on csv file ( alphabetical order by filename )
+eventMap = pd.read_csv("image_codes.csv", sep=',', index_col = 0, squeeze = True).to_dict()
+
+## timing constants
+# in seconds
+durITI              =   1 #changed from 1.5 - now 1 with 50ms jitter
+durFixITI           =   .5  # will be subtracted from durITI as salient fixation
+durEncoding         =   expInfo['EncodingArrayDuration']
+durRetention        =   4.0 #"Get ready to be tested!" appears onscreen for this period
+durBeforeWarning    =   5.0 #beep if no response after given duration
+durRespWindow       =   -1.0 #open-ended response window
+# in frames
+frameRate           =   mywin.getMsPerFrame(nFrames=60, showVisual=False, msg='', msDelay=0.0)
+framesITI           =   int(round(durITI/frameRate[0]*1000))
+framesFixITI        =   int(round(durFixITI/frameRate[0]*1000))
+framesEncoding      =   int(round(durEncoding/frameRate[0]*1000))
+framesRetention     =   int(round(durRetention/frameRate[0]*1000))
+framesBeforeWarning =   int(round(durBeforeWarning/frameRate[0]*1000))
+
+## Stimulus dimensions
+dvaArrayRadius = 3.5 # radius of circle 
+dvaArrayItemLength = 1 # length of lines
+dvaArrayItemWidth = 0.1 # width of lines
+
+## Array values
+setSizes            =[1]
+numTrialsPerBlock   =int(expInfo['BlockLength']) #pairs per block
+numTrialsPerSetSize =int(len(imageFiles)) #picture-bar pairs
+numBlocksBetweenBreaks = 10
+sortedTrials        =list(range(0,numTrialsPerSetSize*len(setSizes)))
+randomizedTrials    =list(range(0,numTrialsPerSetSize*len(setSizes)))
+random.shuffle(randomizedTrials) # uses a seed defined at the top
+
+# Note on stimulus locations: The original version used 90, but this led to a bias in what locations were most likely
+numStimulusLocations=160 # currently set so that each of the 160 items can have their own location, original = 90
+locations           =list(range(0,numStimulusLocations))
+colors              =['white']
+itemSeparation      = 360/numStimulusLocations # even spaced locations, original version used '4' here
+angles              = []
+angle_XYs           = []
+
+for x in range(0,numStimulusLocations):
+    angles.append(x*itemSeparation+1)
+    angle_X=math.cos((x*itemSeparation+1)*math.pi/180)*dvaArrayRadius
+    angle_Y=-math.sin((x*itemSeparation+1)*math.pi/180)*dvaArrayRadius
+    angle_XYs.append([angle_X, angle_Y])
+
+### Make trial list
+
+tList=[]
+
+for x in list(range(0,numTrialsPerSetSize*len(setSizes))):
+    ss  =   setSizes[math.trunc(randomizedTrials[x]/numTrialsPerSetSize)]  #set size (in this task, just SS = 1)
+    pl  =   [randomizedTrials[x]%numStimulusLocations]                     #probed location 
+    pc  =   colors[randomizedTrials[x]%len(colors)]                        #probed color (in this task, just white)
+
+    if ss == 1: # always true in this version
+        ul  = []
+        uc  = []
+
+    else:
+        temp = range(0,len(locations))
+        temp.remove(pl[0])
+        ul  =   random.sample(temp,ss-1)                    #unprobed locations
+        uc  =   [i for i in colors if i != pc]              #unprobed colors
+
+    alll=   pl + ul
+    allc=   [pc] + uc
+    # jitter adding
+    tITI = durITI + (random.randrange(-50,50,1))*0.001
+    tframesITI           =   int(round(tITI/frameRate[0]*1000))
+
+    thisImage = imageFiles[randomizedTrials[x]][len(imageDirectory)+1:]# might need to change the 1 here depending on OS?
+    
+    tList.append({
+        'Participant'       :   expInfo['Participant'],
+        'TaskFile'          :   expInfo['TaskFile'],
+        'Date'              :   expInfo['Date'],
+        'Seed'              :   expInfo['Seed'],
+        'BlockLength'       :   expInfo['BlockLength'],
+        'trialNumber'       :   sortedTrials[x],
+        'trialIndex'        :   randomizedTrials[x],
+        'trialWithinBlock'  :   sortedTrials[x]%numTrialsPerBlock,
+        'trialOnset'        :   0, #not yet set
+        'trialITIDuration':   0,
+        'OnsetRetention':  0,
+        'trialOnsetRespWindow': 0,
+        'trialTestOrder'    :   0,
+        'blockNumber'       :   math.trunc(sortedTrials[x]/numTrialsPerBlock),
+        'probedLocation'    :   pl,
+        'probedColor'       :   pc,
+        'allLocations'      :   alll,
+        'allColors'         :   allc,
+        'allOrientations'   :   [i * itemSeparation+1 for i in alll],
+        'probedXY'          :   angle_XYs[randomizedTrials[x]%numStimulusLocations],
+        'allXY'             :   [angle_XYs[i] for i in alll],
+        'image'             :   thisImage, # defined above
+        'imageFile'         :   imageFiles[randomizedTrials[x]], 
+        'durITI'            :   tITI, #jittered
+        'durEncoding'       :   durEncoding,
+        'durRetention'      :   durRetention,
+        'durBeforeWarning'  :   durBeforeWarning,
+        'durRespWindow'     :   durRespWindow,
+        'framesITI'         :   tframesITI,
+        'framesEncoding'    :   framesEncoding,
+        'framesRetention'   :   framesRetention,
+        'framesBeforeWarning':  framesBeforeWarning,
+        'respLateWarning'   :   False,
+        'respLateWarning_encoding'   :   False,
+        'respRT_encoding'   :   0.0,
+        'respRT'            :   0.0,
+        'respXY'            :   [[0,0],[0,0]],
+        'respAngle'         :   0,
+        'probedAngle'       :   0,
+        'respError'         :   -1
+        })
+
+## DEFINE FUNCTIONS
+
 # for getting angle differences
 def diff_wrap(a, b, half=True): # half means the direction doesnt matter
     if half:
@@ -107,7 +233,6 @@ def diff_wrap(a, b, half=True): # half means the direction doesnt matter
         #flip the negative an positive so that right is positive
         angle = (180 - numpy.abs(numpy.abs(a - b) - 180)) * -1* numpy.sign(numpy.sin(numpy.radians(a-b)))
     return angle
-# #
 
 def give_instructions():
     mywin.flip()
@@ -163,58 +288,6 @@ def give_instructions():
     fixationB.draw()
     mywin.flip()
     core.wait(1)
-
-def give_thanks():
-    mywin.flip()
-
-    thanksText = visual.TextStim(
-        win=mywin,
-        autoLog=False,
-        font='Arial',
-        pos=(0.0, 0.0),
-        rgb=None,
-        color=(1.0,1.0,1.0),
-        colorSpace='rgb',
-        opacity= 1.0,
-        contrast=1.0,
-        units='',
-        ori=0,
-        height=0.5,
-        antialias=True,
-        bold=False,
-        italic=False,
-        alignHoriz='center',
-        alignVert='center',
-        fontFiles=(),
-        wrapWidth=None,
-        flipHoriz=False,
-        flipVert=False,
-        name=None
-        )
-
-    thanksText.setText(
-        'Thank you for participating!\n\n'
-        'You have now finished the experiment, please alert the experimenter.\n\n'
-        'Click the mouse to exit the experiment.'
-        )
-
-    thanksText.setAutoDraw(True)
-    thanksText.draw()
-    mywin.flip()
-    
-    core.wait(1.5)
-    buttons = mouse.getPressed()
-
-    while buttons[0] == 0:
-        if event.getKeys(keyList=['escape', 'q']):
-            save_data()
-            mywin.close()
-            core.quit()
-        buttons = mouse.getPressed()
-
-        if buttons [0] > 0:
-            thanksText.setAutoDraw(False)
-            break
 
 def break_between_blocks():
     fixation0.draw()
@@ -305,6 +378,8 @@ def setup_trial():
     shape0.setPos(axy[0])
     mX,mY=axy[0]
 
+    # if running at higher set sizes, need to add more shape objects here.
+    
     if math.atan2(mY,mX)*180/math.pi>0:
         angle0= math.atan2(mY,mX)*180/math.pi
     else:
@@ -338,6 +413,7 @@ def present_encoding_array():
     backgroundCircle.draw() # draw background
     trialImage.draw(win = mywin) # draw image
     shape0.draw()
+    # add more shapes to draw here, if running at higher set sizes
     stimRadius.lineColor=[-0.5,-0.5,-0.5]
     stimRadius.draw()
     fixation0.pos=mouse.getPos()
@@ -471,13 +547,12 @@ def save_data():
 
     ## create the datafile
     trials.saveAsExcel(
-        fileName=expInfo['TaskFile']+"_"+expInfo['Date']+"_"+expInfo['Participant']+"_TRT_"+str(expInfo['Session'])+'.csv',
+        fileName=expInfo['TaskFile']+"_"+expInfo['Date']+"_"+expInfo['Participant']+'.csv',
         sheetName = expInfo['Participant']+"_"+expInfo['Date'],
         stimOut=[
             'Participant',
             'TaskFile',
             'Date',
-            'Session',
             'Seed',
             'BlockLength',
             'durITI',
@@ -509,134 +584,59 @@ def save_data():
             ]
         )
 
-# Added for images 
-imageFiles = []
-imageFiles = glob.glob(os.path.join(imageDirectory, '*.jpg'))  # where the image files get loaded
+def give_thanks():
+    mywin.flip()
 
-trialImage = visual.ImageStim(win=mywin, image=imageFiles[0]) # temp image
-trialImage.size = [3.5,3.5] # set image size
+    thanksText = visual.TextStim(
+        win=mywin,
+        autoLog=False,
+        font='Arial',
+        pos=(0.0, 0.0),
+        rgb=None,
+        color=(1.0,1.0,1.0),
+        colorSpace='rgb',
+        opacity= 1.0,
+        contrast=1.0,
+        units='',
+        ori=0,
+        height=0.5,
+        antialias=True,
+        bold=False,
+        italic=False,
+        alignHoriz='center',
+        alignVert='center',
+        fontFiles=(),
+        wrapWidth=None,
+        flipHoriz=False,
+        flipVert=False,
+        name=None
+        )
 
-backgroundRadius = math.sqrt((trialImage.size[0]/2)**2 + (trialImage.size[0]/2)**2) # set background size - smallest circle around square image
+    thanksText.setText(
+        'Thank you for participating!\n\n'
+        'You have now finished the experiment, please alert the experimenter.\n\n'
+        'Click the mouse to exit the experiment.'
+        )
 
-# makes a dict with event codes for each image file based on csv file ( alphabetical order by filename )
-eventMap = pd.read_csv("image_codes.csv", sep=',', index_col = 0, squeeze = True).to_dict()
-
-#
-
-## timing constants
-durITI              =   1 #changed from 1.5 - now 1 with 50ms jitter
-durFixITI           =   .5  # will be subtracted from durITI as salient fixation
-durEncoding         =   expInfo['EncodingArrayDuration']
-durRetention        =   4.0 #"Get ready to be tested!" appears onscreen for this period
-durBeforeWarning    =   5.0 #beep if no response after given duration
-durRespWindow       =   -1.0 #open-ended response window
-
-frameRate           =   mywin.getMsPerFrame(nFrames=60, showVisual=False, msg='', msDelay=0.0)
-framesITI           =   int(round(durITI/frameRate[0]*1000))
-framesFixITI        =   int(round(durFixITI/frameRate[0]*1000))
-framesEncoding      =   int(round(durEncoding/frameRate[0]*1000))
-framesRetention     =   int(round(durRetention/frameRate[0]*1000))
-framesBeforeWarning =   int(round(durBeforeWarning/frameRate[0]*1000))
-
-## Stimulus dimensions
-dvaArrayRadius = 3.5
-dvaArrayItemLength = 1
-dvaArrayItemWidth = 0.1
-
-## Array values
-setSizes            =[1]
-numTrialsPerBlock   =int(expInfo['BlockLength']) #pairs per block
-numTrialsPerSetSize =int(len(imageFiles)) #picture-bar pairs
-numBlocksBetweenBreaks = 10
-sortedTrials        =list(range(0,numTrialsPerSetSize*len(setSizes)))
-randomizedTrials    =list(range(0,numTrialsPerSetSize*len(setSizes)))
-random.shuffle(randomizedTrials) # uses a seed defined at the top
-
-numStimulusLocations=90
-locations           =list(range(0,numStimulusLocations))
-colors              =['white']
-itemSeparation      =4 #degrees arc
-angles              = []
-angle_XYs           = []
-
-for x in range(0,numStimulusLocations):
-    angles.append(x*itemSeparation+1)
-    angle_X=math.cos((x*itemSeparation+1)*math.pi/180)*dvaArrayRadius
-    angle_Y=-math.sin((x*itemSeparation+1)*math.pi/180)*dvaArrayRadius
-    angle_XYs.append([angle_X, angle_Y])
-
-## define parameters for each trial of each trial type
-
-tList=[]
-
-for x in list(range(0,numTrialsPerSetSize*len(setSizes))):
-    ss  =   setSizes[math.trunc(randomizedTrials[x]/numTrialsPerSetSize)]  #set size
-    pl  =   [randomizedTrials[x]%numStimulusLocations]                     #probed location
-    pc  =   colors[randomizedTrials[x]%len(colors)]                        #probed color
-
-    if ss == 1:
-        ul  = []
-        uc  = []
-
-    else:
-        temp = range(0,len(locations))
-        temp.remove(pl[0])
-        ul  =   random.sample(temp,ss-1)                    #unprobed locations
-        uc  =   [i for i in colors if i != pc]              #unprobed colors
-
-    alll=   pl + ul
-    allc=   [pc] + uc
-    # jitter adding
-    tITI = durITI + (random.randrange(-50,50,1))*0.001
-    tframesITI           =   int(round(tITI/frameRate[0]*1000))
-
-    thisImage = imageFiles[randomizedTrials[x]][len(imageDirectory)+1:]# might need to change the 1 here depending on OS?
+    thanksText.setAutoDraw(True)
+    thanksText.draw()
+    mywin.flip()
     
-    tList.append({
-        'Participant'       :   expInfo['Participant'],
-        'Session'           :   expInfo['Session'],
-        'TaskFile'          :   expInfo['TaskFile'],
-        'Date'              :   expInfo['Date'],
-        'Seed'              :   expInfo['Seed'],
-        'BlockLength'       :   expInfo['BlockLength'],
-        'trialNumber'       :   sortedTrials[x],
-        'trialIndex'        :   randomizedTrials[x],
-        'trialWithinBlock'  :   sortedTrials[x]%numTrialsPerBlock,
-        'trialOnset'        :   0, #not yet set
-        'trialITIDuration':   0,
-        'OnsetRetention':  0,
-        'trialOnsetRespWindow': 0,
-        'trialTestOrder'    :   0,
-        'blockNumber'       :   math.trunc(sortedTrials[x]/numTrialsPerBlock),
-        'probedLocation'    :   pl,
-        'probedColor'       :   pc,
-        'allLocations'      :   alll,
-        'allColors'         :   allc,
-        'allOrientations'   :   [i * itemSeparation+1 for i in alll],
-        'probedXY'          :   angle_XYs[randomizedTrials[x]%numStimulusLocations],
-        'allXY'             :   [angle_XYs[i] for i in alll],
-        'image'             :   thisImage, # defined above
-        'imageFile'         :   imageFiles[randomizedTrials[x]], 
-        'durITI'            :   tITI, #jittered
-        'durEncoding'       :   durEncoding,
-        'durRetention'      :   durRetention,
-        'durBeforeWarning'  :   durBeforeWarning,
-        'durRespWindow'     :   durRespWindow,
-        'framesITI'         :   tframesITI,
-        'framesEncoding'    :   framesEncoding,
-        'framesRetention'   :   framesRetention,
-        'framesBeforeWarning':  framesBeforeWarning,
-        'respLateWarning'   :   False,
-        'respLateWarning_encoding'   :   False,
-        'respRT_encoding'   :   0.0,
-        'respRT'            :   0.0,
-        'respXY'            :   [[0,0],[0,0]],
-        'respAngle'         :   0,
-        'probedAngle'       :   0,
-        'respError'         :   -1
-        })
+    core.wait(1.5)
+    buttons = mouse.getPressed()
 
-## define trial stimuli
+    while buttons[0] == 0:
+        if event.getKeys(keyList=['escape', 'q']):
+            save_data()
+            mywin.close()
+            core.quit()
+        buttons = mouse.getPressed()
+
+        if buttons [0] > 0:
+            thanksText.setAutoDraw(False)
+            break
+
+## define stimuli
 breakScreen = visual.TextStim(
     win=mywin,
     autoLog=False,
@@ -698,14 +698,14 @@ fixationB = visual.Circle(
     fillColor=[-.5,-.5,-.5],
     pos=(0, 0)
     )
-#
+# corners of bar
 vtx=(
     (-dvaArrayItemLength/2, -dvaArrayItemWidth/2),
     (dvaArrayItemLength/2, -dvaArrayItemWidth/2),
     (dvaArrayItemLength/2, dvaArrayItemWidth/2),
     (-dvaArrayItemLength/2, dvaArrayItemWidth/2)
     )
-
+# the bar stim
 shape0 = visual.ShapeStim(
     win=mywin,
     autoLog=False,
@@ -715,41 +715,7 @@ shape0 = visual.ShapeStim(
     closeShape=True
     )
 
-shape1 = visual.ShapeStim(
-    win=mywin,
-    autoLog=False,
-    units='deg',
-    lineWidth=1,
-    vertices=vtx,
-    closeShape=True
-    )
-
-shape2 = visual.ShapeStim(
-    win=mywin,
-    autoLog=False,
-    units='deg',
-    lineWidth=1,
-    vertices=vtx,
-    closeShape=True
-    )
-
-shape3 = visual.ShapeStim(
-    win=mywin,
-    autoLog=False,
-    units='deg',
-    lineWidth=1,
-    vertices=vtx,
-    closeShape=True
-    )
-
-text0 = visual.TextStim(
-    win=mywin,
-    autoLog=False,
-    height=0.75,
-    text='test'
-    )
-
-# added for images
+# background added for images
 backgroundCircle = visual.Circle(
     win=mywin,
     autoLog=False,
@@ -759,11 +725,10 @@ backgroundCircle = visual.Circle(
     fillColorSpace = 'rgb255',
     fillColor = 255
     )
-#                 #
 
+# set up trial handler
 if expInfo['TrialsToAdminister']=='all':
     numTrialsRequested = len(tList)
-
 else:
     numTrialsRequested = int(expInfo['TrialsToAdminister'])
 
@@ -817,7 +782,7 @@ for trial in trials:
         
 give_thanks()
 
-# Finishing touches
+# End
 save_data()
 mywin.close()
 core.quit()
