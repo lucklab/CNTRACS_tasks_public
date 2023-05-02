@@ -131,7 +131,7 @@ dvaArrayItemLength = 1 # length of lines
 dvaArrayItemWidth = 0.1 # width of lines
 
 ## Array values
-setSizes            =[1]
+setSizes            =[1] # Just 1 set size now
 numTrialsPerBlock   =int(expInfo['BlockLength']) #pairs per block
 numTrialsPerSetSize =int(len(imageFiles)) #picture-bar pairs
 numBlocksBetweenBreaks = 10
@@ -190,8 +190,8 @@ for x in list(range(0,numTrialsPerSetSize*len(setSizes))):
         'trialIndex'        :   randomizedTrials[x],
         'trialWithinBlock'  :   sortedTrials[x]%numTrialsPerBlock,
         'trialOnset'        :   0, #not yet set
-        'trialITIDuration':   0,
-        'OnsetRetention':  0,
+        'trialITIDuration'  :   0,
+        'OnsetRetention'    :   0,
         'trialOnsetRespWindow': 0,
         'trialTestOrder'    :   0,
         'blockNumber'       :   math.trunc(sortedTrials[x]/numTrialsPerBlock),
@@ -289,25 +289,7 @@ def give_instructions():
     mywin.flip()
     core.wait(1)
 
-def break_between_blocks():
-    fixation0.draw()
-    mywin.flip()
-    buttons = mouse.getPressed()
-    
-    while buttons[0] == 0:
-        if event.getKeys(keyList=['escape', 'q']):
-            save_data()
-            mywin.close()
-            core.quit()
-
-        buttons = mouse.getPressed()
-
-        if buttons [0] > 0:
-            fixation0.setAutoDraw(False)
-
-    core.wait(2.0)
-
-def long_break_between_blocks(breakNum):
+def break_between_blocks(breakNum):
     mywin.flip()
     core.wait(1.0)
     breakText = visual.TextStim(
@@ -531,7 +513,6 @@ def present_response_window(i,j):
 
         event.clearEvents()
         
-    
     # response error
     tested_trial['respError'] = diff_wrap(tested_trial['probedAngle'],tested_trial['respAngle']) # function doing this defined above
 
@@ -640,7 +621,7 @@ def give_thanks():
 breakScreen = visual.TextStim(
     win=mywin,
     autoLog=False,
-    text="Get ready to get tested!"
+    text="Get ready to be tested!"
     )
 
 stimRadius = visual.Circle(
@@ -757,7 +738,8 @@ for trial in trials:
     present_ITI()
 
     present_encoding_array()
-
+    
+    # check if time for test
     if trial['trialNumber']%numTrialsPerBlock == numTrialsPerBlock-1 or trial['trialNumber'] == numTrialsRequested-1:
 
         present_retention_interval() #prepare to get tested
@@ -778,7 +760,7 @@ for trial in trials:
         blockNum += 1
 
         if trial['trialNumber'] != numTrialsRequested-1:
-            long_break_between_blocks(blockNum)
+            break_between_blocks(blockNum)
         
 give_thanks()
 
