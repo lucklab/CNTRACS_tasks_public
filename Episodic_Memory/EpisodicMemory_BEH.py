@@ -15,8 +15,7 @@ and the information is therefore stored in EM
 This procedure is then repeated several times with different pictures and locations.
 
 When a mixture model is applied to data from this task, it is possible to estimate the probability that
-a given pair was stored in EM, the precision of the EM representation, 
-and the probability of a binding error (reporting the location associated with a different word).
+a given pair was stored in EM, the precision of the EM representation.
 
 
 This version of the task uses pictures, an earlier version used words instead.
@@ -75,7 +74,7 @@ if dlg.OK:  # or if ok_data is not None
         autoLog=False,
         units='deg',
         screen=0, #screen=0 for primary monitor, screen=1 to display on secondary monitor
-        fullscr=True #fullscrn=False if window is small, True to take the full screen
+        fullscr=True 
         )
     loadingScreen = visual.TextStim(
         win=mywin,
@@ -109,9 +108,10 @@ backgroundRadius = math.sqrt((trialImage.size[0]/2)**2 + (trialImage.size[0]/2)*
 # makes a dict with event codes for each image file based on csv file ( alphabetical order by filename )
 eventMap = pd.read_csv("image_codes.csv", sep=',', index_col = 0, squeeze = True).to_dict()
 
-## timing constants
-# in seconds
-durITI              =   1 #changed from 1.5 - now 1 with 50ms jitter
+## Set parameters
+
+# Timing (seconds)
+durITI              =   1 # 1 sec with 50ms jitter
 durFixITI           =   .5  # will be subtracted from durITI as salient fixation
 durEncoding         =   expInfo['EncodingArrayDuration']
 durRetention        =   4.0 #"Get ready to be tested!" appears onscreen for this period
@@ -127,10 +127,10 @@ framesBeforeWarning =   int(round(durBeforeWarning/frameRate[0]*1000))
 
 ## Stimulus dimensions
 dvaArrayRadius = 3.5 # radius of circle 
-dvaArrayItemLength = 1 # length of lines
-dvaArrayItemWidth = 0.1 # width of lines
+dvaArrayItemLength = 1 # length of bars
+dvaArrayItemWidth = 0.1 # width of bars
 
-## Array values
+## Conditions, locations info
 setSizes            =[1] # Just 1 set size now
 numTrialsPerBlock   =int(expInfo['BlockLength']) #pairs per block
 numTrialsPerSetSize =int(len(imageFiles)) #picture-bar pairs
@@ -146,6 +146,9 @@ colors              =['white']
 itemSeparation      = 360/numStimulusLocations # even spaced locations, original version used '4' here
 angles              = []
 angle_XYs           = []
+
+#  0 degrees (and location 0) is on the right most end of the circle (3 oclock)
+# 90 degrees is on the bottom (6 oclock) and so on around the circle...
 
 for x in range(0,numStimulusLocations):
     angles.append(x*itemSeparation+1)
@@ -223,7 +226,7 @@ for x in list(range(0,numTrialsPerSetSize*len(setSizes))):
         'respError'         :   -1
         })
 
-## DEFINE FUNCTIONS
+### Define functions
 
 # for getting angle differences
 def diff_wrap(a, b, half=True): # half means the direction doesnt matter
@@ -617,7 +620,8 @@ def give_thanks():
             thanksText.setAutoDraw(False)
             break
 
-## define stimuli
+### Create stimuli
+
 breakScreen = visual.TextStim(
     win=mywin,
     autoLog=False,
@@ -669,7 +673,7 @@ fixation1 = visual.Circle(
     radius=dvaArrayItemWidth,
     pos=(0, 0)
     )
-#
+# more salient fixation loom
 fixationB = visual.Circle(
     win=mywin,
     autoLog=False,
@@ -679,7 +683,7 @@ fixationB = visual.Circle(
     fillColor=[-.5,-.5,-.5],
     pos=(0, 0)
     )
-# corners of bar
+# bar dimensions
 vtx=(
     (-dvaArrayItemLength/2, -dvaArrayItemWidth/2),
     (dvaArrayItemLength/2, -dvaArrayItemWidth/2),
@@ -707,7 +711,8 @@ backgroundCircle = visual.Circle(
     fillColor = 255
     )
 
-# set up trial handler
+# Set up trials
+
 if expInfo['TrialsToAdminister']=='all':
     numTrialsRequested = len(tList)
 else:
@@ -723,7 +728,7 @@ trials = data.TrialHandler(
 
 loadingScreen.setAutoDraw(False)
 
-# Experiment Start #
+### Experiment Start ###
 
 give_instructions()
 

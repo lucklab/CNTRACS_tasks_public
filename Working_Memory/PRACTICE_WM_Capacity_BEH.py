@@ -1,32 +1,32 @@
-
 # P R A C T I C E #
 
 # currently set to 15 random trials #
-
-
 '''
-3.1.2. WM Capacity: Here we illustrate the
-model with one of our proposed tasks. As
-shown in Fig. 2A, either one or a set of four
-colored lines is briefly presented at random
-locations around an invisible circle. After a
-1000-ms delay, a colored disk is presented at
-fixation and the invisible circle becomes
-visible. The task is to recall the location
-associated with this color and click it on the
-peripheral circle
+Working Memory Capacity
+
+Either 1 or a set of 5 colored lines is briefly presented at random locations around an invisible circle.
+
+After a 1000-ms delay, the cursor becomes visible, and colored as one of the lines.
+
+The task is to recall the location of the bar associated with this color and click it on the peripheral circle.
+
+When a mixture model is applied to data from this task, it is possible to estimate the probability that
+a given location was stored in WM, the precision of the WM representation.
 '''
 
-
-## Import key parts of the PsychoPy library:
+## Import modules
 from psychopy import prefs
 prefs.general['audioLib'] = ['pyo']
 from psychopy import visual, monitors, core, event, sound, data, gui
 import math, random, numpy, os, glob
 
-# set a seed - makes everything not actually random. Randomize seed or take out to randomize order of trials
-seed = 100 # use different seed for practice than real run - otherwise will be the same first 15 trials
-random.seed(seed)
+## Important: set seed for randomization. (for practice runs, defaults to same ordering)
+# The seed used by the CNTRACS group was 10000 always, meaning the 'randomization' was the same for all runs
+# To use this (and thus get the same exact version), un-comment the line below, and comment out the other seed line
+seed = 10000 # could use a different arbitrary number for a separate version that would be consistent across runs
+
+# To have the trial ordering random each run, have the line below un-commented
+#seed = int(random.uniform(1, 1000000))
 
 # make sure working directory is right
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
@@ -34,7 +34,6 @@ os.chdir(os.path.dirname(os.path.abspath(__file__)))
 ## start a datafile
 expInfo = {
     'Participant'   :   'PRACTICE',
-    'Session'       :   'Practice',
     'TrialsToAdminister':   '15',
     'MonitorTest?'      :   ['Yes','No'], #default to test colors
     'TaskFile'      :   os.path.basename(__file__)[:-3],
@@ -43,8 +42,9 @@ expInfo = {
     }
 # present a dialogue to change params
 dlg = gui.DlgFromDict(expInfo, title='LocateColor', 
-fixed=['TaskFile','Session','Date','TrialsToAdminister','TaskFile','Date','Seed'], 
+fixed=['TaskFile','Date','TrialsToAdminister','TaskFile','Date','Seed'], 
 order=['Participant','MonitorTest?'])
+
 if dlg.OK:
     ## Define a monitor
     my_monitor = monitors.Monitor(name='ERP1_stim')
@@ -58,7 +58,7 @@ if dlg.OK:
         autoLog=False,
         units='deg',
         screen=0, #screen=0 for primary monitor, screen=1 to display on secondary monitor
-        fullscr=True #fullscrn=False if window is small, True to take the full screen
+        fullscr=True 
         )
     loadingScreen = visual.TextStim(
         win=mywin,
@@ -68,14 +68,130 @@ if dlg.OK:
     loadingScreen.draw()
     mywin.flip()
     mouse = event.Mouse(visible = False, win = mywin)
-     # moved clock from here to beginning of run...
     warning = sound.Sound('A', octave=3, sampleRate=44100, secs=0.2, stereo=True, volume=0.8)
 else:
     core.quit()  # the user hit cancel so exit
 
+### Set parameters
+
+# Timing (seconds)
+durITI              =   1 # 1 sec with 50ms jitter
+durBlankITI         =   .25 # blank ITI without fixation
+durFixITI           =   .5  # will be subtracted from durITI as bigger fixation
+durEncoding         =   0.5
+durRetention        =   1.0
+durBeforeWarning    =   3.0 #beep if no response after given duration
+durRespWindow       =   -1.0 #open-ended response window
+frameRate           =   mywin.getMsPerFrame(nFrames=60, showVisual=False, msg='', msDelay=0.0)
+# in frames
+framesITI           =   int(round(durITI/frameRate[0]*1000))
+framesBlankITI      =   int(round(durBlankITI/frameRate[0]*1000))
+framesFixITI        =   int(round(durFixITI/frameRate[0]*1000))
+framesEncoding      =   int(round(durEncoding/frameRate[0]*1000))
+framesRetention     =   int(round(durRetention/frameRate[0]*1000))
+framesBeforeWarning =   int(round(durBeforeWarning/frameRate[0]*1000))
+
+## Stimulus dimensions
+dvaArrayRadius = 3.5 # radius of circle 
+dvaArrayItemLength = 1 # length of bars
+dvaArrayItemWidth = 0.1 # width of bars
+
+## Conditions, locations info
+setSizes            =[1,5]
+numTrialsPerSetSize =200 # wont run this many for practice...
+numTrialsPerBlock   =40 # needs to divide into numTrialsPerSetSize
+sortedTrials        =list(range(0,numTrialsPerSetSize*len(setSizes)))
+randomizedTrials    =list(range(0,numTrialsPerSetSize*len(setSizes)))
+random.shuffle(randomizedTrials)
+numStimulusLocations=100 # needs to divide into numTrialsPerSetSize
+locations           =list(range(0,numStimulusLocations))
+colors              =['#000000', '#1e00b4', '#00aaff', '#ffffff', '#00ff00'] #black/darkblue/cyan/white/lightgreen
+itemSeparation      = 360/numStimulusLocations #degrees arc
+angles              = []
+angle_XYs           = []
+for x in range(0,numStimulusLocations):
+    angles.append(x*itemSeparation+1)
+    angle_X=math.cos((x*itemSeparation+1)*math.pi/180)*dvaArrayRadius
+    angle_Y=-math.sin((x*itemSeparation+1)*math.pi/180)*dvaArrayRadius
+    angle_XYs.append([angle_X, angle_Y])
+
+#  0 degrees (and location 0) is on the right most end of the circle (3 oclock)
+# 90 degrees is on the bottom (6 oclock) and so on around the circle...
+
+### Make trial list
+
+tList=[]
+
+for x in list(range(0,numTrialsPerSetSize*len(setSizes))):
+    ss  =   setSizes[math.trunc(randomizedTrials[x]/numTrialsPerSetSize)]  #set size
+    pl  =   [randomizedTrials[x]%numStimulusLocations]                       #probed location
+    pc  =   colors[randomizedTrials[x]%len(colors)]                        #probed color
+    if ss == 1:
+        ul  = []
+        uc  = []
+    else:
+        temp = list(range(0,len(locations))) # added list
+        temp.remove(pl[0])
+        ul  =   random.sample(temp,ss-1)                    #unprobed locations
+        tempc = list(colors)
+        tempc.remove(pc)
+        uc = random.sample(tempc,ss-1) #unprobed colors
+    alll=   pl + ul
+    
+    random.shuffle(uc) # added shuffle here
+    allc=   [pc] + uc
+    
+    # jitter ITI
+    tITI = durITI + (random.randrange(-50,50,1))*0.001 # 1000 ms with a 50ms jitter
+    tList.append({
+        'Participant'       :   expInfo['Participant'],
+        'TaskFile'          :   expInfo['TaskFile'],
+        'Date'              :   expInfo['Date'],
+        'Seed'              :   expInfo['Seed'],
+        'trialNumber'       :   sortedTrials[x],
+        'trialIndex'        :   randomizedTrials[x],
+        'trialWithinBlock'  :   sortedTrials[x]%numTrialsPerBlock,
+        'trialOnset'        :   0, #not yet set
+        'trialOnsetITI'     :   0,
+        'trialOnsetEncoding':   0,
+        'trialOnsetRetention':  0,
+        'trialOnsetRespWindow': 0,
+        'trialOnsetTrigger': 0,
+        'trialRespTrigger': 0,
+        'blockNumber'       :   math.trunc(sortedTrials[x]/numTrialsPerBlock),
+        'setSize'           :   ss,
+        'probedLocation'    :   pl,
+        'probedColor'       :   pc,
+        'unprobedLocations' :   ul,
+        'unprobedColors'    :   uc,
+        'allLocations'      :   alll,
+        'allColors'         :   allc,
+        'allOrientations'   :   [i * itemSeparation+1 for i in alll],
+        'probedXY'          :   angle_XYs[randomizedTrials[x]%numStimulusLocations],
+        'unprobedXY'        :   [angle_XYs[i] for i in ul],
+        'allXY'             :   [angle_XYs[i] for i in alll],
+        'durITI'            :   tITI,
+        'durEncoding'       :   durEncoding,
+        'durRetention'      :   durRetention,
+        'durBeforeWarning'  :   durBeforeWarning,
+        'durRespWindow'     :   durRespWindow,
+        'framesITI'         :   int(round(tITI/frameRate[0]*1000)),
+        'framesEncoding'    :   framesEncoding,
+        'framesRetention'   :   framesRetention,
+        'framesBeforeWarning':  framesBeforeWarning,
+        'respLateWarning'   :   False,
+        'respRT'           :   0.0,
+        'respXY'           :   [[0,0],[0,0]],
+        'respAngle'         :   0,
+        'probedAngle'       :   0,
+        'unprobedAngles'    :   []
+        })
+
+### Define functions
+
+# this tests participant's ability to click on item of each color
 def test_monitor_colors():
     mouse = event.Mouse(visible = False, win = mywin)
-    ## test participant's ability to click on item of each color
     testColors=colors[:]
     random.shuffle(testColors)
     testText = visual.TextStim(
@@ -108,7 +224,7 @@ def test_monitor_colors():
     shape2.setLineColor(testColors[2])
     shape3.setLineColor(testColors[3])
     shape4.setLineColor(testColors[4])
-    #shape5.setLineColor(testColors[5])
+    #shape5.setLineColor(testColors[5]) # uncomment all the shape5 stuff if using SS 6
     shape0.setFillColor(testColors[0])
     shape1.setFillColor(testColors[1])
     shape2.setFillColor(testColors[2])
@@ -208,6 +324,7 @@ def test_monitor_colors():
                         core.wait(0.1)
                         countErrors+=1
                         warning.play(loops=0)
+                # Uncomment if using SS 6
                 #elif i==testColors[5]:
                 #    if fixation1.overlaps(shape5):
                 #        core.wait(0.1)
@@ -534,119 +651,8 @@ def give_thanks():
             thanksText.setAutoDraw(False)
             break
 
-## timing constants
-durITI              =   1 # changed from 1.5 - now 1 with 50ms jitter
-durBlankITI         =   .25 # blank ITI without fixation
-durFixITI           =   .5  # will be subtracted from durITI as bigger fixation
-durEncoding         =   0.5
-durRetention        =   1.0
-durBeforeWarning    =   3.0 #beep if no response after given duration
-durRespWindow       =   -1.0 #open-ended response window
-frameRate           =   mywin.getMsPerFrame(nFrames=60, showVisual=False, msg='', msDelay=0.0)
+### Create stimuli
 
-framesITI           =   int(round(durITI/frameRate[0]*1000))
-framesBlankITI      =   int(round(durBlankITI/frameRate[0]*1000))
-framesFixITI        =   int(round(durFixITI/frameRate[0]*1000))
-framesEncoding      =   int(round(durEncoding/frameRate[0]*1000))
-framesRetention     =   int(round(durRetention/frameRate[0]*1000))
-framesBeforeWarning =   int(round(durBeforeWarning/frameRate[0]*1000))
-
-## Stimulus dimensions
-dvaArrayRadius = 3.5
-dvaArrayItemLength = 1
-dvaArrayItemWidth = 0.1
-
-## Array values
-setSizes            =[1,5]
-numTrialsPerSetSize =200
-numTrialsPerBlock   =40
-sortedTrials        =list(range(0,numTrialsPerSetSize*len(setSizes)))
-randomizedTrials    =list(range(0,numTrialsPerSetSize*len(setSizes)))
-random.shuffle(randomizedTrials)
-numStimulusLocations=100 # changed to 100 from 90
-locations           =list(range(0,numStimulusLocations))
-colors              =['#000000', '#1e00b4', '#00aaff', '#ffffff', '#00ff00'] #black/darkblue/cyan/white/lightgreen
-itemSeparation      = 360/numStimulusLocations #degrees arc (changed from hardcoded 4 deg)
-angles              = []
-angle_XYs           = []
-for x in range(0,numStimulusLocations):
-    angles.append(x*itemSeparation+1)
-    angle_X=math.cos((x*itemSeparation+1)*math.pi/180)*dvaArrayRadius
-    angle_Y=-math.sin((x*itemSeparation+1)*math.pi/180)*dvaArrayRadius
-    angle_XYs.append([angle_X, angle_Y])
-
-# looks like 0 degrees (and location 0) is on the right most end of the circle (3 oclock)
-# 90 degrees (location 25 if there are 100) is on the bottom (6 oclock) and so on around the circle...
-
-## define parameters for each trial of each trial type
-tList=[]
-for x in list(range(0,numTrialsPerSetSize*len(setSizes))):
-    ss  =   setSizes[math.trunc(randomizedTrials[x]/numTrialsPerSetSize)]  #set size
-    pl  =   [randomizedTrials[x]%numStimulusLocations]                       #probed location
-    pc  =   colors[randomizedTrials[x]%len(colors)]                        #probed color
-    if ss == 1:
-        ul  = []
-        uc  = []
-    else:
-        temp = list(range(0,len(locations))) # added list
-        temp.remove(pl[0])
-        ul  =   random.sample(temp,ss-1)                    #unprobed locations
-        tempc = list(colors)
-        tempc.remove(pc)
-        uc = random.sample(tempc,ss-1) #unprobed colors
-    alll=   pl + ul
-    
-    random.shuffle(uc) # added shuffle here
-    allc=   [pc] + uc
-    
-    # jitter ITI
-    tITI = durITI + (random.randrange(-50,50,1))*0.001 # 1000 ms with a 50ms jitter
-    tList.append({
-        'Participant'       :   expInfo['Participant'],
-        'Session'           :   expInfo['Session'],
-        'TaskFile'          :   expInfo['TaskFile'],
-        'Date'              :   expInfo['Date'],
-        'Seed'              :   expInfo['Seed'],
-        'trialNumber'       :   sortedTrials[x],
-        'trialIndex'        :   randomizedTrials[x],
-        'trialWithinBlock'  :   sortedTrials[x]%numTrialsPerBlock,
-        'trialOnset'        :   0, #not yet set
-        'trialOnsetITI'     :   0,
-        'trialOnsetEncoding':   0,
-        'trialOnsetRetention':  0,
-        'trialOnsetRespWindow': 0,
-        'trialOnsetTrigger': 0,
-        'trialRespTrigger': 0,
-        'blockNumber'       :   math.trunc(sortedTrials[x]/numTrialsPerBlock),
-        'setSize'           :   ss,
-        'probedLocation'    :   pl,
-        'probedColor'       :   pc,
-        'unprobedLocations' :   ul,
-        'unprobedColors'    :   uc,
-        'allLocations'      :   alll,
-        'allColors'         :   allc,
-        'allOrientations'   :   [i * itemSeparation+1 for i in alll],
-        'probedXY'          :   angle_XYs[randomizedTrials[x]%numStimulusLocations],
-        'unprobedXY'        :   [angle_XYs[i] for i in ul],
-        'allXY'             :   [angle_XYs[i] for i in alll],
-        'durITI'            :   tITI,
-        'durEncoding'       :   durEncoding,
-        'durRetention'      :   durRetention,
-        'durBeforeWarning'  :   durBeforeWarning,
-        'durRespWindow'     :   durRespWindow,
-        'framesITI'         :   int(round(tITI/frameRate[0]*1000)),
-        'framesEncoding'    :   framesEncoding,
-        'framesRetention'   :   framesRetention,
-        'framesBeforeWarning':  framesBeforeWarning,
-        'respLateWarning'   :   False,
-        'respRT'           :   0.0,
-        'respXY'           :   [[0,0],[0,0]],
-        'respAngle'         :   0,
-        'probedAngle'       :   0,
-        'unprobedAngles'    :   []
-        })
-
-## define trial stimuli
 breakScreen = visual.TextStim(
     win=mywin,
     text="New block!"
@@ -689,7 +695,7 @@ fixation1 = visual.Circle(
     radius=dvaArrayItemWidth,
     pos=(0, 0)
     )
-    #
+# more salient fixation loom
 fixationB = visual.Circle(
     win=mywin,
     autoLog=False,
@@ -699,7 +705,7 @@ fixationB = visual.Circle(
     fillColor=[-.5,-.5,-.5],
     pos=(0, 0)
     )
-#
+# bar dimensions
 vtx=(
     (-dvaArrayItemLength/2, -dvaArrayItemWidth/2),
     (dvaArrayItemLength/2, -dvaArrayItemWidth/2),
@@ -750,6 +756,7 @@ shape5 = visual.ShapeStim(
     closeShape=True
     )
 
+# Set up trials (truncated for practice)
 if expInfo['TrialsToAdminister']=='all':
     numTrialsRequested = len(tList)
 else:
@@ -772,19 +779,30 @@ else:
     pass
     
 give_instructions()
+
 mouse = event.Mouse(visible = False, win = mywin)
 clock = core.Clock() #start clock
 
+# Actual experiment run
+
 for trial in trials:
+    
+    # check if break
     if trial['trialNumber']%numTrialsPerBlock == 0 and trial['trialNumber'] != 0:
         break_between_blocks()
+        
     setup_trial()
+    
     present_ITI()
+    
     present_encoding_array()
+    
     present_retention_interval()
+    
     present_response_window()
 
-# Finishing touches
+# End
 give_thanks()
+
 mywin.close()
 core.quit()

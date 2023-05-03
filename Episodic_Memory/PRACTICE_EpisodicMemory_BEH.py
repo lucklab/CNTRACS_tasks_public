@@ -106,9 +106,10 @@ trialImage.size = [3.5,3.5] # set image size
 
 backgroundRadius = math.sqrt((trialImage.size[0]/2)**2 + (trialImage.size[0]/2)**2) # set background size - smallest circle around square image
 
-#                 #
-## timing constants
-durITI              =   1
+## Set parameters
+
+# Timing (seconds)
+durITI              =   1 # 1 sec with 50ms jitter
 durFixITI           =   .5  # will be subtracted from durITI as salient fixation
 durEncoding         =   expInfo['EncodingArrayDuration']
 durRetention        =   4.0 #"Get ready to be tested!" appears onscreen for this period
@@ -123,10 +124,10 @@ framesBeforeWarning =   int(round(durBeforeWarning/frameRate[0]*1000))
 
 ## Stimulus dimensions
 dvaArrayRadius = 3.5 # radius of circle 
-dvaArrayItemLength = 1 # length of lines
-dvaArrayItemWidth = 0.1 # width of lines
+dvaArrayItemLength = 1 # length of bars
+dvaArrayItemWidth = 0.1 # width of bars
 
-## Array values
+## Conditions, locations info
 setSizes            =[1] # Just 1 set size now
 numTrialsPerBlock   =int(expInfo['BlockLength']) #pairs per block
 numTrialsPerSetSize =int(len(imageFiles)) #picture-bar pairs 
@@ -146,6 +147,9 @@ for x in range(0,numStimulusLocations):
     angle_X=math.cos((x*itemSeparation+1)*math.pi/180)*dvaArrayRadius
     angle_Y=-math.sin((x*itemSeparation+1)*math.pi/180)*dvaArrayRadius
     angle_XYs.append([angle_X, angle_Y])
+
+#  0 degrees (and location 0) is on the right most end of the circle (3 oclock)
+# 90 degrees is on the bottom (6 oclock) and so on around the circle...
 
 ### Make trial list
 
@@ -208,6 +212,8 @@ for x in list(range(0,numTrialsPerSetSize*len(setSizes))):
         'respAngle'         :   0,
         'probedAngle'       :   0
         })
+
+### Define functions
 
 def give_instructions():
     mywin.flip()
@@ -517,7 +523,8 @@ def give_thanks():
             thanksText.setAutoDraw(False)
             break    
 
-## define trial stimuli
+### Create stimuli
+
 breakScreen = visual.TextStim(
     win=mywin,
     autoLog=False,
@@ -557,7 +564,7 @@ fixation0 = visual.Circle(
     fillColor=[0,0,0],
     pos=(0, 0)
     )
-#
+# more salient fixation loom
 fixationB = visual.Circle(
     win=mywin,
     autoLog=False,
@@ -575,6 +582,7 @@ fixation1 = visual.Circle(
     radius=dvaArrayItemWidth,
     pos=(0, 0)
     )
+# bar dimensions
 vtx=(
     (-dvaArrayItemLength/2, -dvaArrayItemWidth/2),
     (dvaArrayItemLength/2, -dvaArrayItemWidth/2),
@@ -606,7 +614,8 @@ backgroundCircle = visual.Circle(
     fillColor = 255
     )
 
-#                          #
+
+# Set up trials (truncated for practice)
 
 if expInfo['TrialsToAdminister']=='all':
     numTrialsRequested = len(tList)
@@ -622,16 +631,24 @@ trials = data.TrialHandler(
 
 loadingScreen.setAutoDraw(False)
 
-# Experiment Start #
+### Experiment Start ###
+
 give_instructions()
 
 blockNum = 0
 breakNum = 0
 mouse = event.Mouse(visible = False, win = mywin)
+
+# Actual experiment run
+
 for trial in trials:
+    
     setup_trial()
+    
     present_ITI()
+    
     present_encoding_array()
+    
     if trial['trialNumber']%numTrialsPerBlock == numTrialsPerBlock-1 or trial['trialNumber'] == numTrialsRequested-1:
         present_retention_interval() #prepare to get tested
         
