@@ -1,9 +1,9 @@
-## This is a demo for how to fit a mixture model to data from the CNTRACTS EM task
+## This is a demo for how to fit a mixture model to data from the CNTRACTS WM task
 ## there should be one sample data file included next to this script (its my own data)
 ## - Kurt Winsler (kurtwinsler@gmail.com)
 
 # Usually this would be done per subject, per experimental condition
-# Here I just apply it to one subject
+# Here I just apply it to one subject, separately at two set sizes
 
 # Some background on this model...
 
@@ -40,7 +40,7 @@ library(dplyr)
 library(tidyr)
 
 # set directory (will need to be changed to match your directory...)
-setwd("C:/Users/kwinsler/Documents/GitHub/CNTRACS_tasks_public/Episodic_Memory/analysis_demo")
+setwd("C:/Users/kwinsler/Documents/GitHub/CNTRACS_tasks_public/Working_Memory/analysis_demo")
 
 ## Functions ##
 
@@ -219,10 +219,14 @@ MultiFit <- function(subdata, # subset of larger data
 #### Fit example ####
 
 # load data (here its just one file)
-dat <- read_excel("EpisodicMemory_BEH_2023_May_02_1407_000.csv.xlsx")
+dat <- read_excel("WM_Capacity_BEH_2023_May_03_1045_000.csv.xlsx")
 
 # calculate error, must be done and named error 
 dat$error <- wrap(dat$probedAngle - dat$respAngle, -180,180)
+
+# Split by set size
+dat_ss1 <- dat[dat$setSize == 1, ]
+dat_ss5 <- dat[dat$setSize == 5, ]
 
 # different starting values to try
 # here its 3 kappas and 3 pmems, so MultiFit will try 3x3 fits and take the best one
@@ -232,23 +236,29 @@ pmems <- c(0.5, 0.7, 0.9)
 # or you could just use the FitMix function, with default values or set your own
 
 # fit data
-fit <- MultiFit(dat, rsquared = TRUE, kappa_startvals = kappas, pmem_startvals = pmems)
-  
-print(fit) # these are the fit values
+# Set size 1
+fit_ss1 <- MultiFit(dat_ss1, rsquared = TRUE, kappa_startvals = kappas, pmem_startvals = pmems)
+print(fit_ss1) # these are the fit values
+
+# Set size 5
+fit_ss5 <- MultiFit(dat_ss5, rsquared = TRUE, kappa_startvals = kappas, pmem_startvals = pmems)
+print(fit_ss5) # these are the fit values
 
 
 #### Demo to make a histogram with fit line ####
 histSteps <- seq(-180,180,length=60)
 
+## Set size 1
+
 # make a histogram 
-histplot = hist(dat$error, breaks= histSteps,probability=T, plot=T,xlim=c(-180,180),ylim=c(0,0.1), 
-                xlab="ReponseError", cex=0.1, main = "test_subject")
+histplot = hist(dat_ss1$error, breaks= histSteps,probability=T, plot=T,xlim=c(-180,180),ylim=c(0,0.1), 
+                xlab="ReponseError", cex=0.1, main = "test_subject_SS1")
 
 # get parameters from fit
 xspace <- seq(-pi,pi,length = length(histSteps)-1) # x axis
-pguess <- as.numeric(1 - fit$Pmem) # guess% (1 - pmem)
-kr <- as.numeric( fit$Kappa) # kappa - precision
-alpha <- as.numeric(fit$Pmem) # mixture ratio - pmem
+pguess <- as.numeric(1 - fit_ss1$Pmem) # guess% (1 - pmem)
+kr <- as.numeric( fit_ss1$Kappa) # kappa - precision
+alpha <- as.numeric(fit_ss1$Pmem) # mixture ratio - pmem
 binsize <- deg(xspace[2])-deg(xspace[1])  # bin size in degrees
 
 # generate model prediction (the line)
@@ -259,4 +269,23 @@ predictNorm <- predict/sum(predict)/binsize
 points(deg(xspace), predictNorm, type="l",lwd=2, col="red")
 
 
+## Set size 5
+
+# make a histogram 
+histplot = hist(dat_ss5$error, breaks= histSteps,probability=T, plot=T,xlim=c(-180,180),ylim=c(0,0.1), 
+                xlab="ReponseError", cex=0.1, main = "test_subject_SS5")
+
+# get parameters from fit
+xspace <- seq(-pi,pi,length = length(histSteps)-1) # x axis
+pguess <- as.numeric(1 - fit_ss5$Pmem) # guess% (1 - pmem)
+kr <- as.numeric( fit_ss5$Kappa) # kappa - precision
+alpha <- as.numeric(fit_ss5$Pmem) # mixture ratio - pmem
+binsize <- deg(xspace[2])-deg(xspace[1])  # bin size in degrees
+
+# generate model prediction (the line)
+predict <- alpha*dvm(xspace,0,kr)+ (pguess)/(2*pi)
+predictNorm <- predict/sum(predict)/binsize
+
+# plot the line
+points(deg(xspace), predictNorm, type="l",lwd=2, col="red")
 

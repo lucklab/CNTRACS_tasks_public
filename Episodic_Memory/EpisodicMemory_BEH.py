@@ -254,14 +254,6 @@ def give_instructions():
         ori=0,
         height=0.5,
         antialias=True,
-        bold=False,
-        italic=False,
-        alignHoriz='center',
-        alignVert='center',
-        fontFiles=(),
-        wrapWidth=None,
-        flipHoriz=False,
-        flipVert=False,
         name=None
         )
     
@@ -309,14 +301,6 @@ def break_between_blocks(breakNum):
         ori=0.0,
         height=0.5,
         antialias=True,
-        bold=False,
-        italic=False,
-        alignHoriz='center',
-        alignVert='center',
-        fontFiles=(),
-        wrapWidth=None,
-        flipHoriz=False,
-        flipVert=False,
         name=None
         )
     breakText.setText(
@@ -585,14 +569,6 @@ def give_thanks():
         ori=0,
         height=0.5,
         antialias=True,
-        bold=False,
-        italic=False,
-        alignHoriz='center',
-        alignVert='center',
-        fontFiles=(),
-        wrapWidth=None,
-        flipHoriz=False,
-        flipVert=False,
         name=None
         )
 

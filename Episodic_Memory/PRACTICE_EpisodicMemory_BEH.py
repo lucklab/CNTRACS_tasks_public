@@ -261,14 +261,6 @@ def break_between_blocks(breakNum):
         ori=0.0,
         height=0.5,
         antialias=True,
-        bold=False,
-        italic=False,
-        alignHoriz='center',
-        alignVert='center',
-        fontFiles=(),
-        wrapWidth=None,
-        flipHoriz=False,
-        flipVert=False,
         name=None
         )
     breakText.setText(
@@ -438,7 +430,7 @@ def save_data():
     mywin.flip()
     ## create the datafile
     trials.saveAsExcel(
-        fileName=expInfo['TaskFile']+"_"+expInfo['Date']+"_"+expInfo['Participant']+"_TRT_"+expInfo['Session']+'.csv',
+        fileName=expInfo['TaskFile']+"_"+expInfo['Date']+"_"+expInfo['Participant']+'.csv',
         sheetName = expInfo['Participant']+"_"+expInfo['Date'],
         stimOut=[
             'Participant',
@@ -491,14 +483,6 @@ def give_thanks():
         ori=0,
         height=0.5,
         antialias=True,
-        bold=False,
-        italic=False,
-        alignHoriz='center',
-        alignVert='center',
-        fontFiles=(),
-        wrapWidth=None,
-        flipHoriz=False,
-        flipVert=False,
         name=None
         )
     thanksText.setText(

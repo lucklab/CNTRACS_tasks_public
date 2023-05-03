@@ -207,14 +207,8 @@ def test_monitor_colors():
         ori=0.0,
         height=0.5,
         antialias=True,
-        bold=False,
-        italic=False,
-        alignHoriz='center',
-        alignVert='center',
         fontFiles=(),
         wrapWidth=None,
-        flipHoriz=False,
-        flipVert=False,
         name=None,
         autoLog=None
         )
@@ -620,14 +614,6 @@ def give_thanks():
         ori=0,
         height=0.5,
         antialias=True,
-        bold=False,
-        italic=False,
-        alignHoriz='center',
-        alignVert='center',
-        fontFiles=(),
-        wrapWidth=None,
-        flipHoriz=False,
-        flipVert=False,
         name=None
         )
     thanksText.setText(

@@ -213,15 +213,6 @@ def give_instructions(): # real instruction in practice
         ori=0.0,
         height=0.5,
         antialias=True,
-        bold=False,
-        italic=False,
-        alignHoriz='center',
-        alignVert='center',
-        fontFiles=(),
-        wrapWidth=None,
-        flipHoriz=False,
-        flipVert=False,
-        name=None,
         autoLog=None
         )
 
@@ -500,14 +491,6 @@ def give_thanks():
         ori=0,
         height=0.5,
         antialias=True,
-        bold=False,
-        italic=False,
-        alignHoriz='center',
-        alignVert='center',
-        fontFiles=(),
-        wrapWidth=None,
-        flipHoriz=False,
-        flipVert=False,
         name=None
         )
     thanksText.setText(
@@ -536,12 +519,11 @@ def save_data():
         win=mywin,
         text="Saving to file..."
         )
-    savingScreen.setAutoDraw(True)
     savingScreen.draw()
     mywin.flip()
     ## create the datafile
     trials.saveAsExcel(
-        fileName=expInfo['TaskFile']+"_"+expInfo['Date']+"_"+expInfo['Participant']+'_TRT_'+str(expInfo['Session'])+'.csv',
+        fileName=expInfo['TaskFile']+"_"+expInfo['Date']+"_"+expInfo['Participant']+'.csv',
         sheetName = expInfo['Participant']+"_"+expInfo['Date'],
         stimOut=[
             'Participant',
@@ -580,7 +562,8 @@ def save_data():
             ]
         )
 
-## define trial stimuli
+### Create stimuli
+
 breakScreen = visual.TextStim(
     win=mywin,
     text='Take a break.\n\n'
@@ -685,6 +668,8 @@ shape5 = visual.ShapeStim(
     closeShape=True
     )
 
+# Set up trials
+
 if expInfo['TrialsToAdminister']=='all':
     numTrialsRequested = len(tList)
 else:
@@ -699,6 +684,8 @@ trials = data.TrialHandler(
 
 loadingScreen.setAutoDraw(False)
 
+### Experiment Start ###
+
 clock = core.Clock() #initialize clock that will be reset in give_instructions
 breakNum = 0
 
@@ -708,8 +695,10 @@ give_instructions()
 
 mouse = event.Mouse(visible = False, win = mywin)
 
-# actual experiment
+# Actual experiment run
 for trial in trials:
+    
+    # check if break
     if trial['trialNumber']%numTrialsPerBlock == 0 and trial['trialNumber'] != 0:
         breakNum += 1
         break_between_blocks(breakNum)
@@ -728,7 +717,6 @@ for trial in trials:
 save_data()
 
 give_thanks()
-
 
 mywin.close()
 core.quit()
