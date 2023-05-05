@@ -1,24 +1,21 @@
 '''
-3.1.4. Sensory Precision: We have also developed a task for assessing the sensory precision of the same
-spatial information used in the WM and EM tasks. As shown in Fig. 2D, two lines are presented on each trial,
-abutting each other near the same invisible circle that defines the stimulus locations for the WM and EM tasks.
-Participants are required to report whether the outer line is to the left or right of the inner line. The amount of
-physical left-right displacement is varied across trials using a highly efficient QUEST staircase procedure,
-which produces a Bayesian estimate of the amount of offset needed to achieve 75% (82%) correct (the sensory
-threshold). As in our previous work, catch trials are included so that we can measure the rate of attention
-lapses and estimate the sensory threshold without contamination from lapses. In the study shown in Fig. 3
-above, we used a nearly identical (but less efficient) task in which we tested equal numbers of trials for each
-spatial offset of the two lines. As the offset increased, subjects were more accurate at discriminating their
-relative locations (Fig. 3B), but performance reached asymptote well below 100% correct, reflecting attention
-lapses (which were significantly greater in patients than controls). The slope of the function can be used to
-estimate the precision of the spatial discrimination on non-lapse trials, which is isomorphic with the measure of
-precision used in the WM task. This made it possible to show that the greater WM imprecision in patients than
-in controls could not be explained by greater sensory imprecision in the patients.
+Sensory Precision
+
+This task for assesses the sensory precision of the same spatial information used in the WM and EM tasks.
+
+Two lines are presented on each trial, abutting each other near the same invisible circle that defines the stimulus locations for the WM and EM tasks.
+
+Participants report whether the outer line is to the left or right of the inner line.
+
+The amount of physical left-right displacement is varied across trials using a highly efficient QUEST staircase procedure,
+which produces a Bayesian estimate of the amount of offset needed to achieve 82% correct (the sensory threshold).
+
+Catch trials are included so that we can measure the rate of attention
+lapses and estimate the sensory threshold without contamination from lapses.
 '''
 
 ## Import 
-from psychopy import visual, monitors, core, event, sound, data, gui
-from psychopy.tools.filetools import fromFile, toFile
+from psychopy import visual, monitors, core, event, data, gui
 import math, random, numpy, os
 
 # make sure working directory is right
@@ -27,7 +24,6 @@ os.chdir(os.path.dirname(os.path.abspath(__file__)))
 ## start a datafile
 sessionInfo = {
     'Participant'           :   '---',
-    'Session'       :   ['', '1', '2'],
     'TrialsToAdminister'    :   'all',
     'CatchTrialPercentage'  :   20,
     'windowFullScreen'      : True
@@ -38,25 +34,11 @@ dlg = gui.DlgFromDict(
     sessionInfo,
     title='Sensory Precision',
     fixed=['TaskFile','Date','Seed','TrialsToAdminister','CatchTrialPercentage','windowFullScreen'],
-    order=['Participant','Session']
+    order=['Participant']
     )
 
-## Check if session number is filled in with a number, quit if not
-while True:
-    try:
-        sessionInfo['Session'] = int(sessionInfo['Session'])
-        break
-    except ValueError:
-        print("Please enter a session number!")
-        core.quit()
-
-if dlg.OK:  # or if ok_data is not None
-
-    ## Check if session number set
-    if not isinstance(sessionInfo['Session'], int):
-        print('Please enter a session number!') 
-        core.quit()
-    
+if dlg.OK:
+ 
     ## Define a monitor
     my_monitor = monitors.Monitor(name='ERP1_stim') 
     my_monitor.setSizePix((1920,1200))
@@ -92,22 +74,22 @@ else:
 expInfo = {
     'TaskFile'      :   os.path.basename(__file__)[:-3],
     'Date'          :   data.getDateStr(),
-    'stimDuration'  :   0.1,
-    'stimLength'    :   0.5,
+    'stimDuration'  :   0.1, # in seconds
+    'stimLength'    :   0.5, # in degrees
     'stimWidth'     :   0.1,
     'stimOffsetFromScreenCenter'                        :   3.5,
-    'stimUseFixedOffsetsNotQuestRecommendedOffsets'     :   False,
-    'questInitialThresholdEstimateDegreesRadialAngle'   :   2.6, #"tGuess" or "startVal"
-    'questInitialThresholdSD'                           :   5.0,
-    'questCatchTrialRadialAngle'                        :   6.0,
-    'questAccuracyAtThreshold'                          :   0.8035, #"pThreshold"  (changed from 82% to 80.35% to match online threshold - kpw)
+    'questInitialThresholdEstimateDegreesRadialAngle'   :   2.6, # starting place of staircase, mean of prior 
+    'questInitialThresholdSD'                           :   5.0, # SD of prior^ (very wide here)
+    'questCatchTrialRadialAngle'                        :   6.0, # The spacing for catch trials
+    'questAccuracyAtThreshold'                          :   0.82, #"pThreshold" (percent accuracy threshold being estimated)
     'questNumberOfTrials'                               :   numTrialsRequested-(sessionInfo['CatchTrialPercentage']/100*numTrialsRequested),
-    'questPercentConfidenceRequired'                    :   None, #The minimum 5-95% confidence interval required in the threshold estimate before stopping. If both this and nTrials is specified, whichever happens first will determine when Quest will stop.
     'questMethod'                                       :   'quantile', #The method used to determine the next threshold to test. If you want to get a specific threshold level at the end of your staircasing, please use the quantile, mean, and mode methods directly.
     'questSteepness'                                    :   3.5,  #"beta" Controls the steepness of the psychometric function.
     'questLapseRate'                                    :   0.01, #"delta" The fraction of trials on which the observer presses blindly.
     'questResponseBias'                                 :   0.5,  #"gamma" The fraction of trials that will generate response 1 when intensity=-Inf.
     'questGrain'                                        :   0.01, #The quantization of the internal table.
+    # these are unused, but kept here in case 
+    'questPercentConfidenceRequired'                    :   None, #The minimum 5-95% confidence interval required in the threshold estimate before stopping. If both this and nTrials is specified, whichever happens first will determine when Quest will stop.
     'questRange'                                        :   None, #The intensity difference between the largest and smallest intensity that the internal table can store. This interval will be centered on the initial guess tGuess. QUEST assumes that intensities outside of this range have zero prior probability (i.e., they are impossible).
     'questExtraInfo'                                    :   None, #A dictionary (typically) that will be stored along with collected data using saveAsPickle() or saveAsText() methods.
     'questMinVal'                                       :   0, #The smallest legal value for the staircase, which can be used to prevent it reaching impossible contrast values, for instance.
@@ -117,69 +99,33 @@ expInfo = {
     'questName'                                         :   ''
     }
 
-def save_data():
-    savingScreen = visual.TextStim(
-        win=mywin,
-        autoLog=False,
-        text="Saving to file..."
-        )
-    savingScreen.setAutoDraw(True)
-    savingScreen.draw()
-    mywin.flip()
-    ## create the datafile
-    trials.saveAsExcel(
-        fileName=expInfo['TaskFile']+"_"+expInfo['Date']+"_"+sessionInfo['Participant']+'_v2_'+'_TRT_'+str(sessionInfo['Session'])+'.csv', # VERSION 1 (no v2 in name) has issue with tracking catch trial accuracy, VERSION 2 (with v2 in name) has this fixed
-        sheetName = sessionInfo['Participant']+"_"+expInfo['Date'],
-        stimOut=[
-            'Participant',
-            'Session',
-            'TaskFile',
-            'Date',
-            'questInitialThresholdEstimateDegreesRadialAngle',
-            'questInitialThresholdSD', 
-            'questAccuracyAtThreshold',
-            'questNumberOfTrials',
-            'questSteepness',
-            'questResponseBias',
-            'questGrain',
-            'questRange',
-            'questLapseRate',
-            'trialNumber',
-            'trialOnset',
-            'trialDuration',
-            'trialOnsetITI',
-            'catchTrial',
-            'questRecommendedSeparation',
-            'probedSeparation',
-            'respRT',
-            'respACC'
-        ]
-    )
 
-breakText = visual.TextStim(
-        win=mywin,
-        autoLog=False,
-        font='Arial',
-        pos=(0.0, 0.0),
-        rgb=None,
-        color=(1.0, 1.0, 1.0),
-        colorSpace='rgb',
-        opacity=1.0,
-        contrast=1.0,
-        units='',
-        ori=0.0,
-        height=0.5,
-        antialias=True,
-        bold=False,
-        italic=False,
-        alignHoriz='center',
-        alignVert='center',
-        )
+## Stimulus parameters
+stimDuration        =   expInfo['stimDuration'] #seconds
+stimPresentaionFlips=   int(round(stimDuration/frameRate[0]*1000))
 
-breakText.setText(
-    'Take a break.\n\n'
-    'When you are ready, press either the left or right arrow buttons to continue.'
-    )
+stimITI = 1 #seconds ITI - gets jittered 50ms
+framesStimITI        =   int(round(stimITI/frameRate[0]*1000)) # base iti
+
+durFixITI           =   .5  # will be subtracted from stimITI as bigger fixation
+framesFixITI        =   int(round(durFixITI/frameRate[0]*1000))
+
+dvaArrayRadius      =   expInfo['stimOffsetFromScreenCenter']
+dvaArrayOuterRadius =   dvaArrayRadius+0.26
+dvaArrayInnerRadius =   dvaArrayRadius-0.26
+dvaArrayItemLength  =   expInfo['stimLength']
+dvaArrayItemWidth   =   expInfo['stimWidth']
+
+#1 in 5 trials is a catch trial
+catchTrials=[1,0,0,0,0,0,0,0,0,1]
+
+# make array of when breaks are (100 means there would be 3 breaks)
+breakInverval = 100 # number of trials before break, must divide into total number of trials
+
+breakArray = numpy.linspace(breakInverval, numTrialsRequested-breakInverval, int((numTrialsRequested-breakInverval)/breakInverval))
+breakArray = [ int(x) for x in breakArray ]
+
+## Define functions
 
 def give_break():
 
@@ -220,74 +166,95 @@ def give_break():
     
     fixation0.setAutoDraw(True)
 
-    
-# make array of when breaks are
-breakInverval = 100 # number of trials before break, must divide into total number of trials
-
-breakArray = numpy.linspace(breakInverval, numTrialsRequested-breakInverval,3)
-breakArray = [ int(x) for x in breakArray ]
-#
-
-loadingScreen.setAutoDraw(False)
-
-instructionsText = visual.TextStim(
-    win=mywin,
-    font='Arial',
-    pos=(0.0, 0.0),
-    rgb=None,
-    color=(1.0, 1.0, 1.0),
-    colorSpace='rgb',
-    opacity=1.0,
-    contrast=1.0,
-    units='',
-    ori=0.0,
-    height=0.5,
-    antialias=True,
-    bold=False,
-    italic=False,
-    alignHoriz='center',
-    alignVert='center',
-    fontFiles=(),
-    wrapWidth=None,
-    flipHoriz=False,
-    flipVert=False,
-    name=None,
-    autoLog=None
+def save_data():
+    savingScreen = visual.TextStim(
+        win=mywin,
+        autoLog=False,
+        text="Saving to file..."
+        )
+    savingScreen.setAutoDraw(True)
+    savingScreen.draw()
+    mywin.flip()
+    ## create the datafile
+    trials.saveAsExcel(
+        fileName=expInfo['TaskFile']+"_"+expInfo['Date']+"_"+sessionInfo['Participant']+'.csv',
+        sheetName = sessionInfo['Participant']+"_"+expInfo['Date'],
+        stimOut=[
+            'Participant',
+            'Session',
+            'TaskFile',
+            'Date',
+            'questInitialThresholdEstimateDegreesRadialAngle',
+            'questInitialThresholdSD', 
+            'questAccuracyAtThreshold',
+            'questNumberOfTrials',
+            'questSteepness',
+            'questResponseBias',
+            'questGrain',
+            'questRange',
+            'questLapseRate',
+            'trialNumber',
+            'trialOnset',
+            'trialDuration',
+            'trialOnsetITI',
+            'catchTrial',
+            'questRecommendedSeparation',
+            'probedSeparation',
+            'respRT',
+            'respACC'
+        ]
     )
 
-instructionsText.setText(
-    'When you are ready, press either the left or right arrow buttons to begin the task.'
+## Make trial list
+tList=[]
+for x in list(range(0,numTrialsRequested)):
+    tList.append({
+        'Participant'       :   sessionInfo['Participant'],
+        'Session'           :   sessionInfo['Session'],
+        'TaskFile'          :   expInfo['TaskFile'],
+        'Date'              :   expInfo['Date'],
+        'cmFromSubjToScreen':   100,
+        'questInitialThresholdEstimateDegreesRadialAngle'   :   expInfo['questInitialThresholdEstimateDegreesRadialAngle'],
+        'questInitialThresholdSD'                           :   expInfo['questInitialThresholdSD'], 
+        'questAccuracyAtThreshold'                          :   expInfo['questAccuracyAtThreshold'],
+        'questNumberOfTrials'                               :   expInfo['questNumberOfTrials'],
+        'questSteepness'                                    :   expInfo['questSteepness'],
+        'questResponseBias'                                 :   expInfo['questResponseBias'],
+        'questGrain'                                        :   expInfo['questGrain'],
+        'questRange'                                        :   expInfo['questRange'],
+        'questLapseRate'                                    :   expInfo['questLapseRate'],
+        'trialNumber'       :   x,
+        'trialOnset'        :   0, #not yet set
+        'trialDuration'     :   0,
+        'trialOnsetITI'     :   0,
+        'catchTrial'        :   0,
+        'questRecommendedSeparation' : 0.0,
+        'probedSeparation'  :   0.0,
+        'respRT'            :   0.0,
+        'respACC'           :   0
+        })
+
+trials = data.TrialHandler(
+    trialList=tList[0:int(numTrialsRequested)],
+    nReps=1,
+    method='sequential',
+    dataTypes=[]
     )
 
-instructionsText.draw()
+quest = data.QuestHandler(
+    startVal    =   expInfo['questInitialThresholdEstimateDegreesRadialAngle'],
+    startValSd  =   expInfo['questInitialThresholdSD'], 
+    pThreshold  =   expInfo['questAccuracyAtThreshold'],
+    nTrials     =   expInfo['questNumberOfTrials'],
+    beta        =   expInfo['questSteepness'],
+    delta       =   expInfo['questLapseRate'],
+    gamma       =   expInfo['questResponseBias'],
+    grain       =   expInfo['questGrain'],
+    range       =   expInfo['questRange'],
+    autoLog     =   True
+    )
 
-mywin.flip()
-clock = core.Clock() #start global clock
-
-allKeys = event.waitKeys(keyList=['escape','left','right'])
-for thisKey in allKeys:
-    if thisKey in ['escape']:
-        mywin.close()
-        core.quit()
-    elif thisKey in ['left','right']:
-        event.clearEvents()
-
-mywin.flip()
-instructionsText.setAutoDraw(False)
-
-## Stimulus dimensions
-stimDuration        =   expInfo['stimDuration'] #seconds
-stimPresentaionFlips=   int(round(stimDuration/frameRate[0]*1000))
-stimITI = 1 #seconds ITI - gets jittered 50ms
-framesStimITI        =   int(round(stimITI/frameRate[0]*1000)) # base iti
-durFixITI           =   .5  # will be subtracted from stimITI as bigger fixation
-framesFixITI        =   int(round(durFixITI/frameRate[0]*1000))
-
-dvaArrayRadius      =   expInfo['stimOffsetFromScreenCenter']
-dvaArrayOuterRadius =   dvaArrayRadius+0.26
-dvaArrayInnerRadius =   dvaArrayRadius-0.26
-dvaArrayItemLength  =   expInfo['stimLength']
-dvaArrayItemWidth   =   expInfo['stimWidth']
+## Create stimuli
 
 fixation0 = visual.Circle(
     win=mywin,
@@ -346,57 +313,67 @@ shapeInner = visual.ShapeStim(
     closeShape=True
     )
 
-## define parameters for each trial of each trial type
-tList=[]
-for x in list(range(0,numTrialsRequested)):
-    tList.append({
-        'Participant'       :   sessionInfo['Participant'],
-        'Session'           :   sessionInfo['Session'],
-        'TaskFile'          :   expInfo['TaskFile'],
-        'Date'              :   expInfo['Date'],
-        'cmFromSubjToScreen':   100,
-        'questInitialThresholdEstimateDegreesRadialAngle'   :   expInfo['questInitialThresholdEstimateDegreesRadialAngle'],
-        'questInitialThresholdSD'                           :   expInfo['questInitialThresholdSD'], 
-        'questAccuracyAtThreshold'                          :   expInfo['questAccuracyAtThreshold'],
-        'questNumberOfTrials'                               :   expInfo['questNumberOfTrials'],
-        'questSteepness'                                    :   expInfo['questSteepness'],
-        'questResponseBias'                                 :   expInfo['questResponseBias'],
-        'questGrain'                                        :   expInfo['questGrain'],
-        'questRange'                                        :   expInfo['questRange'],
-        'questLapseRate'                                    :   expInfo['questLapseRate'],
-        'trialNumber'       :   x,
-        'trialOnset'        :   0, #not yet set
-        'trialDuration'     :   0,
-        'trialOnsetITI'     :   0,
-        'catchTrial'        :   0,
-        'questRecommendedSeparation' : 0.0,
-        'probedSeparation'  :   0.0,
-        'respRT'            :   0.0,
-        'respACC'           :   0
-        })
+breakText = visual.TextStim(
+        win=mywin,
+        autoLog=False,
+        font='Arial',
+        pos=(0.0, 0.0),
+        rgb=None,
+        color=(1.0, 1.0, 1.0),
+        colorSpace='rgb',
+        opacity=1.0,
+        contrast=1.0,
+        units='',
+        ori=0.0,
+        height=0.5,
+        antialias=True
+        )
 
-trials = data.TrialHandler(
-    trialList=tList[0:int(numTrialsRequested)],
-    nReps=1,
-    method='sequential',
-    dataTypes=[]
+breakText.setText(
+    'Take a break.\n\n'
+    'When you are ready, press either the left or right arrow buttons to continue.'
     )
 
-quest = data.QuestHandler(
-    startVal    =   expInfo['questInitialThresholdEstimateDegreesRadialAngle'],
-    startValSd  =   expInfo['questInitialThresholdSD'], 
-    pThreshold  =   expInfo['questAccuracyAtThreshold'],
-    nTrials     =   expInfo['questNumberOfTrials'],
-    beta        =   expInfo['questSteepness'],
-    delta       =   expInfo['questLapseRate'],
-    gamma       =   expInfo['questResponseBias'],
-    grain       =   expInfo['questGrain'],
-    range       =   expInfo['questRange'],
-    autoLog     =   True
+instructionsText = visual.TextStim(
+    win=mywin,
+    font='Arial',
+    pos=(0.0, 0.0),
+    rgb=None,
+    color=(1.0, 1.0, 1.0),
+    colorSpace='rgb',
+    opacity=1.0,
+    contrast=1.0,
+    units='',
+    ori=0.0,
+    height=0.5,
+    antialias=True
     )
 
-#1 in 5 trials is a catch trial
-catchTrials=[1,0,0,0,0,0,0,0,0,1]
+instructionsText.setText(
+    'When you are ready, press either the left or right arrow buttons to begin the task.'
+    )
+
+## Start instructions
+loadingScreen.setAutoDraw(False)
+
+instructionsText.draw()
+
+mywin.flip()
+clock = core.Clock() #start global clock
+
+allKeys = event.waitKeys(keyList=['escape','left','right'])
+for thisKey in allKeys:
+    if thisKey in ['escape']:
+        mywin.close()
+        core.quit()
+    elif thisKey in ['left','right']:
+        event.clearEvents()
+
+mywin.flip()
+instructionsText.setAutoDraw(False)
+
+## Start experiment
+
 catchTrialTracker = 0
 catchTrialAccuracy = 0.0
 strCatch = ''
@@ -431,24 +408,20 @@ for nTrial in trials:
         catchTrialTracker += 1
         strCatch = 'catch trial'
         nTrial['catchTrial'] = 1
+    
+    # real trial
     else:
         quest.next()
-        if expInfo['stimUseFixedOffsetsNotQuestRecommendedOffsets']:
-            previousNonCatchSeparationTested = round (quest.quantile() / expInfo['questMajorAdjustmentRadialAngle']) * expInfo['questMajorAdjustmentRadialAngle']
-        else:
-            previousNonCatchSeparationTested = quest.quantile()
+        previousNonCatchSeparationTested = quest.quantile()
         strCatch = ''
+        
         if nTrial['trialNumber'] < 10:
             if correctRespTracker == 3 or incorrectRespTracker == 1:
                 correctRespTracker = 0
                 incorrectRespTracker = 0
-                if expInfo['stimUseFixedOffsetsNotQuestRecommendedOffsets']:
-                    if separationToTest >= 2 * expInfo['questMajorAdjustmentRadialAngle']:
-                        separationToTest = round (quest.quantile() / expInfo['questMajorAdjustmentRadialAngle']) * expInfo['questMajorAdjustmentRadialAngle']
-                    else:
-                        separationToTest = round (quest.quantile() / expInfo['questMinorAdjustmentRadialAngle']) * expInfo['questMinorAdjustmentRadialAngle']
-                else:
-                    separationToTest = quest.quantile()
+                
+                separationToTest = quest.quantile()
+                
             else:
                 separationToTest = previousNonCatchSeparationTested
         else:

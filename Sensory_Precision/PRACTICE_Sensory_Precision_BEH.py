@@ -21,8 +21,7 @@ in controls could not be explained by greater sensory imprecision in the patient
 '''
 
 ## Import key parts of the PsychoPy library:
-from psychopy import visual, monitors, core, event, sound, data, gui
-from psychopy.tools.filetools import fromFile, toFile
+from psychopy import visual, monitors, core, event, data, gui
 import math, random, numpy, os, glob
 
 # make sure working directory is right
@@ -31,7 +30,6 @@ os.chdir(os.path.dirname(os.path.abspath(__file__)))
 ## start a datafile
 sessionInfo = {
     'Participant'           :   'PRACTICE',
-    'Session'               :   'Practice',
     'TrialsToAdminister'    :   '10',
     'CatchTrialPercentage'  :   20,
     'cmFromSubjToScreen'    :   100,
@@ -41,7 +39,7 @@ sessionInfo = {
 dlg = gui.DlgFromDict(
     sessionInfo,
     title='Sensory Precision',
-    fixed=['TaskFile','Date','Seed','TrialsToAdminister','CatchTrialPercentage','windowFullScreen', 'cmFromSubjToScreen','Session'],
+    fixed=['TaskFile','Date','Seed','TrialsToAdminister','CatchTrialPercentage','windowFullScreen', 'cmFromSubjToScreen'],
     order=['Participant']
     )
 
@@ -90,7 +88,7 @@ expInfo = {
     'questInitialThresholdEstimateDegreesRadialAngle'   :   2.6, #"tGuess" or "startVal"
     'questInitialThresholdSD'                           :   5.0,
     'questCatchTrialRadialAngle'                        :   6.0,
-    'questAccuracyAtThreshold'                          :   0.8035, #"pThreshold"  (changed from 82% to 80.35% to match online threshold - kpw)
+    'questAccuracyAtThreshold'                          :   0.82, #"pThreshold"  (changed from 82% to 80.35% to match online threshold - kpw)
     'questNumberOfTrials'                               :   numTrialsRequested-(sessionInfo['CatchTrialPercentage']/100*numTrialsRequested),
     'questPercentConfidenceRequired'                    :   None, #The minimum 5-95% confidence interval required in the threshold estimate before stopping. If both this and nTrials is specified, whichever happens first will determine when Quest will stop.
     'questMethod'                                       :   'quantile', #The method used to determine the next threshold to test. If you want to get a specific threshold level at the end of your staircasing, please use the quantile, mean, and mode methods directly.

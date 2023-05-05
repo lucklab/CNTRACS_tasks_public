@@ -140,18 +140,20 @@ randomizedTrials    =list(range(0,numTrialsPerSetSize*len(setSizes)))
 random.shuffle(randomizedTrials) # uses a seed defined at the top
 
 # Note on stimulus locations: The original version used 90, but this led to a bias in what locations were most likely
-numStimulusLocations=160 # currently set so that each of the 160 items can have their own location, original = 90
+numStimulusLocations=numTrialsPerSetSize # currently set so that each of the 160 items can have their own location, original = 90
 locations           =list(range(0,numStimulusLocations))
 colors              =['white']
 itemSeparation      = 360/numStimulusLocations # even spaced locations, original version used '4' here
 angles              = []
 angle_XYs           = []
 
+
 #  0 degrees (and location 0) is on the right most end of the circle (3 oclock)
 # 90 degrees is on the bottom (6 oclock) and so on around the circle...
 
 for x in range(0,numStimulusLocations):
-    angles.append(x*itemSeparation+1)
+    angles.append(x*itemSeparation+1) # this +1 offset works for our purposes, breaks if numStimulusLocations >= 360
+    # the +1 offset ^ is not strictly needed, just takes angles off the cardinal axes
     angle_X=math.cos((x*itemSeparation+1)*math.pi/180)*dvaArrayRadius
     angle_Y=-math.sin((x*itemSeparation+1)*math.pi/180)*dvaArrayRadius
     angle_XYs.append([angle_X, angle_Y])
@@ -354,7 +356,7 @@ def setup_trial():
     else:
         angle0= (2*math.pi + math.atan2(mY,mX))*180/math.pi
 
-    trial['probedAngle']=int(angle0)
+    trial['probedAngle']=angle0
     trialImageFile = trial['imageFile'] # image file with path
     trialImage.setImage(trialImageFile) # set the image
 
