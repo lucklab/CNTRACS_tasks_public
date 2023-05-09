@@ -8,20 +8,34 @@ Two lines are presented on each trial, abutting each other near the same invisib
 Participants report whether the outer line is to the left or right of the inner line.
 
 The amount of physical left-right displacement is varied across trials using a highly efficient QUEST staircase procedure,
-which produces a Bayesian estimate of the amount of offset needed to achieve 82% correct (the sensory threshold).
+which produces a Bayesian estimate of the amount of offset needed to achieve 82% correct (the sensory threshold, in angular degrees).
 
-Catch trials are included so that we can measure the rate of attention
-lapses and estimate the sensory threshold without contamination from lapses.
+Catch trials are included so that we can measure the rate of attention lapses
+and estimate the sensory threshold without contamination from lapses.
+
+Note on trial number:
+It is currently set to run 400 trials, 20% of which are "catch trials"
+If one does not need to get a precise measure of the lapse rate, 
+fewer trials are likely sufficient to measure the sensory threshold (e.g. 200 total trials)
+This can be set in the "TrialsToAdminister" field of "sessionInfo"
+
+Note on QUEST staircase parameters:
+These are currently set to be able to measure a wide range of possible thresholds (.1 degrees through 5.1 degrees of angular separation),
+but to further optimize the efficiency of the staircase, one could center the prior on a more precise value, based on pilot data.
+(e.g. healthy young adults will likely have thresholds below 2.6, which is the current mean of the prior.)
+Note that if you change the QUEST parameters, you should manually set the min/max value of the staircase to make sure it can sample all the intended values
+    (currently this script will not measure a threshold above 5.1 degrees, to keep it separate from the catch trials which are set at 6 degrees)
 '''
-## Import 
+
+## Import modules
 from psychopy import visual, monitors, core, event, data, gui
 import math, random, numpy, os
 
 # Set seed for randomization.
-# In this task, no consistent seed was used (unlike in the WM and EM tasks)
+# In this task, no consistent seed was used by CNTRACS (unlike in the WM and EM tasks)
 seed = int(random.uniform(1, 1000000))
 
-# make sure working directory is right
+# make sure working directory is right (currently set to where the script is located)
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
 ## start a datafile
@@ -85,7 +99,7 @@ expInfo = {
     'stimWidth'     :   0.1,
     'stimOffsetFromScreenCenter'                        :   3.5, # radius of circle bars on
     'questInitialThresholdEstimateDegreesRadialAngle'   :   2.6, # starting place of staircase, mean of prior (could be set to match)
-    'questInitialThresholdSD'                           :   5.0, # SD of prior^ (a wide prior is preferable here, but could be set more narrow)
+    'questInitialThresholdSD'                           :   5.0, # SD of prior^ (a wide prior is preferable here, but could be set more narrow - if so, set the range parameter)
     'questCatchTrialRadialAngle'                        :   6.0, # The spacing for catch trials
     'questAccuracyAtThreshold'                          :   0.82, #"pThreshold" (percent accuracy threshold being estimated)
     'questNumberOfTrials'                               :   numTrialsRequested-(sessionInfo['CatchTrialPercentage']/100*numTrialsRequested),
@@ -101,7 +115,6 @@ expInfo = {
     'questMinVal'                                       :   0, #The smallest legal value for the staircase, which can be used to prevent it reaching impossible contrast values, for instance.
     'questMaxVal'                                       :   None, #The largest legal value for the staircase, which can be used to prevent it reaching impossible contrast values, for instance.
     'questStaircase'                                    :   None, #Can supply a staircase object with intensities and results. Might be useful to give the quest algorithm more information if you have it. You can also call the importData function directly.
-    'questOriginPath'                                   :   None,
     'questName'                                         :   ''
     }
 
@@ -210,6 +223,7 @@ def save_data():
             'catchTrial',
             'questRecommendedSeparation',
             'probedSeparation',
+            'currentThresholdEst',
             'respRT',
             'respACC'
         ]
@@ -237,9 +251,10 @@ for x in list(range(0,numTrialsRequested)):
         'trialOnset'        :   0, # these not yet set
         'trialDuration'     :   0,
         'trialOnsetITI'     :   0,
-        'catchTrial'        :   0,
-        'questRecommendedSeparation' : 0.0,
-        'probedSeparation'  :   0.0,
+        'catchTrial'        :   0, # 1 = yes
+        'questRecommendedSeparation' : 0.0, # threshold estimate, before trial
+        'probedSeparation'  :   0.0, # should match ^ unless catch trial
+        'currentThresholdEst':  0.0, # new threshold estimate, after trial
         'respRT'            :   0.0,
         'respACC'           :   0
         })
@@ -495,7 +510,7 @@ for nTrial in trials:
     
     # ITI FLIP
     mywin.flip()
-    nTrial['trialDuration'] = clock.getTime() - nTrial['trialOnset']# get trial duration (minus trigger time)
+    nTrial['trialDuration'] = clock.getTime() - nTrial['trialOnset']# get stimulus duration (time minus onset time)
         
     ## response
     thisResp = None
@@ -541,7 +556,9 @@ for nTrial in trials:
         quest.addResponse(thisResp,separationToTest)
         #quest.calculateNextIntensity()
         #quest.next()
-
+        
+    nTrial['currentThresholdEst'] = quest.quantile()
+    
     fixation0.setAutoDraw(False)
     
     # jittered ITI
