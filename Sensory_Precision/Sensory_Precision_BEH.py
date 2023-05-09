@@ -13,10 +13,13 @@ which produces a Bayesian estimate of the amount of offset needed to achieve 82%
 Catch trials are included so that we can measure the rate of attention
 lapses and estimate the sensory threshold without contamination from lapses.
 '''
-
 ## Import 
 from psychopy import visual, monitors, core, event, data, gui
 import math, random, numpy, os
+
+# Set seed for randomization.
+# In this task, no consistent seed was used (unlike in the WM and EM tasks)
+seed = int(random.uniform(1, 1000000))
 
 # make sure working directory is right
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
@@ -24,9 +27,11 @@ os.chdir(os.path.dirname(os.path.abspath(__file__)))
 ## start a datafile
 sessionInfo = {
     'Participant'           :   '---',
-    'TrialsToAdminister'    :   'all',
-    'CatchTrialPercentage'  :   20,
-    'windowFullScreen'      : True
+    'TrialsToAdminister'    :   'all', # currently set as 400
+    'CatchTrialPercentage'  :   20, # if this is changed, the "catchTrials" varible needs to be changed accordingly
+    'windowFullScreen'      : True,
+    'Date'          :   data.getDateStr(),
+    'Seed'          :   seed
     }
     
 # present a dialogue to change params
@@ -51,7 +56,7 @@ if dlg.OK:
         autoLog=False,
         units='deg',
         screen=0, #screen=0 for primary monitor, screen=1 to display on secondary monitor
-        fullscr=sessionInfo['windowFullScreen'] #fullscrn=False if window is small, True to take the full screen
+        fullscr=sessionInfo['windowFullScreen'] #True to take the full screen
         )
     loadingScreen = visual.TextStim(
         win=mywin,
@@ -67,19 +72,20 @@ else:
     core.quit()  # the user hit cancel so exit
 
 if sessionInfo['TrialsToAdminister']=='all':
-    numTrialsRequested = 400
+    numTrialsRequested = 400 # could potentially be lowered
 else:
     numTrialsRequested = int(sessionInfo['TrialsToAdminister'])
 
 expInfo = {
     'TaskFile'      :   os.path.basename(__file__)[:-3],
-    'Date'          :   data.getDateStr(),
+    'Date'          :   sessionInfo['Date'],
+    'Seed'          :   sessionInfo['Seed'],
     'stimDuration'  :   0.1, # in seconds
     'stimLength'    :   0.5, # in degrees
     'stimWidth'     :   0.1,
-    'stimOffsetFromScreenCenter'                        :   3.5,
-    'questInitialThresholdEstimateDegreesRadialAngle'   :   2.6, # starting place of staircase, mean of prior 
-    'questInitialThresholdSD'                           :   5.0, # SD of prior^ (very wide here)
+    'stimOffsetFromScreenCenter'                        :   3.5, # radius of circle bars on
+    'questInitialThresholdEstimateDegreesRadialAngle'   :   2.6, # starting place of staircase, mean of prior (could be set to match)
+    'questInitialThresholdSD'                           :   5.0, # SD of prior^ (a wide prior is preferable here, but could be set more narrow)
     'questCatchTrialRadialAngle'                        :   6.0, # The spacing for catch trials
     'questAccuracyAtThreshold'                          :   0.82, #"pThreshold" (percent accuracy threshold being estimated)
     'questNumberOfTrials'                               :   numTrialsRequested-(sessionInfo['CatchTrialPercentage']/100*numTrialsRequested),
@@ -88,7 +94,7 @@ expInfo = {
     'questLapseRate'                                    :   0.01, #"delta" The fraction of trials on which the observer presses blindly.
     'questResponseBias'                                 :   0.5,  #"gamma" The fraction of trials that will generate response 1 when intensity=-Inf.
     'questGrain'                                        :   0.01, #The quantization of the internal table.
-    # these are unused, but kept here in case 
+    # these are unused, but kept here to let people know they could set these parameters in the staircase
     'questPercentConfidenceRequired'                    :   None, #The minimum 5-95% confidence interval required in the threshold estimate before stopping. If both this and nTrials is specified, whichever happens first will determine when Quest will stop.
     'questRange'                                        :   None, #The intensity difference between the largest and smallest intensity that the internal table can store. This interval will be centered on the initial guess tGuess. QUEST assumes that intensities outside of this range have zero prior probability (i.e., they are impossible).
     'questExtraInfo'                                    :   None, #A dictionary (typically) that will be stored along with collected data using saveAsPickle() or saveAsText() methods.
@@ -116,10 +122,14 @@ dvaArrayInnerRadius =   dvaArrayRadius-0.26
 dvaArrayItemLength  =   expInfo['stimLength']
 dvaArrayItemWidth   =   expInfo['stimWidth']
 
-#1 in 5 trials is a catch trial
-catchTrials=[1,0,0,0,0,0,0,0,0,1]
+angleRange = 40 #range in degrees from center that presentation can be
 
-# make array of when breaks are (100 means there would be 3 breaks)
+# Make array of catchTrials (will be shuffled after first iteration)
+# currently 1 in 5 trials is a catch trial
+# 1st trial is easy catch trial
+catchTrials=[1,0,0,0,0,0,0,0,0,1] # for 20%
+
+## Make array of when breaks are (100 means there would be 3 breaks)
 breakInverval = 100 # number of trials before break, must divide into total number of trials
 
 breakArray = numpy.linspace(breakInverval, numTrialsRequested-breakInverval, int((numTrialsRequested-breakInverval)/breakInverval))
@@ -181,9 +191,9 @@ def save_data():
         sheetName = sessionInfo['Participant']+"_"+expInfo['Date'],
         stimOut=[
             'Participant',
-            'Session',
             'TaskFile',
             'Date',
+            'Seed',
             'questInitialThresholdEstimateDegreesRadialAngle',
             'questInitialThresholdSD', 
             'questAccuracyAtThreshold',
@@ -210,9 +220,9 @@ tList=[]
 for x in list(range(0,numTrialsRequested)):
     tList.append({
         'Participant'       :   sessionInfo['Participant'],
-        'Session'           :   sessionInfo['Session'],
         'TaskFile'          :   expInfo['TaskFile'],
         'Date'              :   expInfo['Date'],
+        'Seed'              :   expInfo['Seed'],
         'cmFromSubjToScreen':   100,
         'questInitialThresholdEstimateDegreesRadialAngle'   :   expInfo['questInitialThresholdEstimateDegreesRadialAngle'],
         'questInitialThresholdSD'                           :   expInfo['questInitialThresholdSD'], 
@@ -224,7 +234,7 @@ for x in list(range(0,numTrialsRequested)):
         'questRange'                                        :   expInfo['questRange'],
         'questLapseRate'                                    :   expInfo['questLapseRate'],
         'trialNumber'       :   x,
-        'trialOnset'        :   0, #not yet set
+        'trialOnset'        :   0, # these not yet set
         'trialDuration'     :   0,
         'trialOnsetITI'     :   0,
         'catchTrial'        :   0,
@@ -255,7 +265,6 @@ quest = data.QuestHandler(
     )
 
 ## Create stimuli
-
 fixation0 = visual.Circle(
     win=mywin,
     autoLog=True,
@@ -283,7 +292,7 @@ fixationB = visual.Circle(
     )
 
 gapMultiplier = 0.8
-
+# corners of bars
 vtx=(
     (gapMultiplier*-dvaArrayItemLength/2, -dvaArrayItemWidth/2),
     (gapMultiplier*dvaArrayItemLength/2, -dvaArrayItemWidth/2),
@@ -353,7 +362,7 @@ instructionsText.setText(
     'When you are ready, press either the left or right arrow buttons to begin the task.'
     )
 
-## Start instructions
+## Start instructions (real instructions in practice)
 loadingScreen.setAutoDraw(False)
 
 instructionsText.draw()
@@ -394,6 +403,7 @@ for frame in range(framesStimITI-framesFixITI):
 
 fixation0.setAutoDraw(True)
 
+# Trial loop
 for nTrial in trials:
     
     # check if time for break
@@ -411,32 +421,17 @@ for nTrial in trials:
     
     # real trial
     else:
-        quest.next()
-        previousNonCatchSeparationTested = quest.quantile()
         strCatch = ''
-        
-        if nTrial['trialNumber'] < 10:
-            if correctRespTracker == 3 or incorrectRespTracker == 1:
-                correctRespTracker = 0
-                incorrectRespTracker = 0
-                
-                separationToTest = quest.quantile()
-                
-            else:
-                separationToTest = previousNonCatchSeparationTested
-        else:
-            separationToTest = quest.quantile()
-        previousNonCatchSeparationTested = separationToTest
+        separationToTest = quest.quantile()
     
     nTrial['questRecommendedSeparation']    =   quest.quantile()
     nTrial['probedSeparation']  =   separationToTest
     
     #assign random stim location
-    
-    angleRange = 40 #range in degrees from center that presentation can be
     innerStimAngle = random.randint(0,angleRange) #outer radius stimulus angle will be offset from here
     stimVertical = random.choice([1, -1]) #whether the stimulus is above or below screen center
     
+    # Get angles of the two bars
     if innerStimAngle - separationToTest < 0:
         outerStimAngle = innerStimAngle + separationToTest
     elif innerStimAngle + separationToTest > angleRange:
@@ -471,6 +466,7 @@ for nTrial in trials:
             correctResp='left'
             incorrectResp='right'
     
+    # set positions, orientations for the two bars
     innerStimAngle  =   innerStimAngle+angleAdjust
     xInner          =    math.cos(innerStimAngle*math.pi/180)
     yInner          =   -math.sin(innerStimAngle*math.pi/180)
@@ -502,13 +498,13 @@ for nTrial in trials:
     nTrial['trialDuration'] = clock.getTime() - nTrial['trialOnset']# get trial duration (minus trigger time)
         
     ## response
-    
     thisResp = None
     while thisResp == None:
         allKeys = event.waitKeys()
         for thisKey in allKeys:
-            nTrial['respRT']    =   clock.getTime()-nTrial['trialOnset']
+            
             if thisKey == correctResp:
+                nTrial['respRT']    =   clock.getTime()-nTrial['trialOnset']
                 thisResp=1
                 strResp = 'responded correctly'
                 if catchTrials[nTrial['trialNumber']%len(catchTrials)] != 1:
@@ -517,35 +513,35 @@ for nTrial in trials:
                     catchTrialAccuracy += 1
                             
             elif thisKey == incorrectResp:
+                nTrial['respRT']    =   clock.getTime()-nTrial['trialOnset']
                 thisResp=0
                 strResp = 'responded incorrectly'
                 correctRespTracker = 0
                 incorrectRespTracker = 1
                             
             elif thisKey in ['escape','q']:
-                quest.addResponse(0,0)
                 save_data()
                 mywin.close()
                 core.quit()
         event.clearEvents()
     
     nTrial['respACC']   =   thisResp
-    
     nTrial['trialOnsetITI'] =   clock.getTime()
     
     if catchTrialTracker >= 10:
         quest.setDelta          =   1-catchTrialAccuracy/catchTrialTracker
         nTrial['questLapseRate']=   1-catchTrialAccuracy/catchTrialTracker
     
-    print(str(nTrial['trialNumber']) + ':   ' + strResp + '        correctRespTracker = ' + str(correctRespTracker) + '   incorrectRespTracker = ' + str(incorrectRespTracker) + '   separation tested =    ' + str(separationToTest) + '   QUEST recommended: ' + str(quest.quantile()) + '    ' + strCatch)
-    if catchTrials[nTrial['trialNumber']%len(catchTrials)] != 1:
-        quest.addResponse(thisResp,separationToTest)
-        quest.calculateNextIntensity()
-    
+    # if end of catchTrial array, reshuffle
     if (nTrial['trialNumber']+1)%len(catchTrials) == 0:
         random.shuffle(catchTrials)
-        print(catchTrials)
-    
+        
+    # if not catch trial, add info to QUEST
+    if catchTrials[nTrial['trialNumber']%len(catchTrials)] != 1:
+        quest.addResponse(thisResp,separationToTest)
+        #quest.calculateNextIntensity()
+        #quest.next()
+
     fixation0.setAutoDraw(False)
     
     # jittered ITI
@@ -556,17 +552,21 @@ for nTrial in trials:
     fixationB.draw() # more salient fixation
     mywin.flip()
     
+    # shrinking fixation
     for frame in range(framesFixITI-1):  # minus 1 because of flip before
         fixationB.radius -= 0.005
         fixationB.draw()
         mywin.flip()
-        
+    
+    # fixation
     for frame in range(thisFramesITI):
         fixation0.draw()
         mywin.flip()
     
     fixation0.setAutoDraw(True)
+    # end of trial loop iteration, go to new trial
 
+## End
 save_data()
 mywin.close()
 core.quit()

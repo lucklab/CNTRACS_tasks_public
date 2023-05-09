@@ -94,7 +94,8 @@ dvaArrayItemWidth = 0.1 # width of bars
 ## Conditions, locations info
 setSizes            =[1,5] # could add more set sizes...
 numTrialsPerSetSize =200
-numTrialsPerBlock   =40 # needs to divide into numTrialsPerSetSize
+numTrialsPerBlock   =40 # n trials before break - needs to divide into numTrialsPerSetSize
+
 sortedTrials        =list(range(0,numTrialsPerSetSize*len(setSizes)))
 randomizedTrials    =list(range(0,numTrialsPerSetSize*len(setSizes)))
 random.shuffle(randomizedTrials)
