@@ -63,15 +63,9 @@ Participants are presented with 12 trial blocks of a set of pictures (3-6 images
 
 **Payment:** Participants get money equal to the number of points they receive in the trial blocks phase divided by 50 (The amount is output at the end, max = $11)
 
-##### Effort Based Decision Making
-*This task is needs to be downloaded and installed separately*
-
-**It can be downloaded here:** "link here..."
-
+##### [Effort Based Decision Making](https://github.com/lnccbrown/task-effort)
 Participants are instructed to choose using keyboard keys (q or p) between two balloons (green or blue) to inflate up to a spike in order to receive a predetermined number of points. At the start of each trial the participant is informed of the probability (50% or 100%) of receiving points. The blue balloon will always require 20 button presses and the participant can only receive 1 point. The green balloon requires more button presses (100, 120, 150) but may yield more points. The object of the task is to earn as many points as possible.
 
-**Duration:** ~??min
+*This task does not use PsychoPy and is hosted on a separate repository*
 
-**Behavioral input:** Keyboard (q/p)
-
-**Payment:** ??
+**It can be accessed here:** https://github.com/lnccbrown/task-effort
