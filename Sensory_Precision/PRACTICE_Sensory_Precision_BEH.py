@@ -5,7 +5,7 @@
 '''
 Sensory Precision
 
-This task for assesses the sensory precision of the same spatial information used in the WM and EM tasks.
+This task assesses the sensory precision of the same spatial information used in the WM and EM tasks.
 
 Two lines are presented on each trial, abutting each other near the same invisible circle that defines the stimulus locations for the WM and EM tasks.
 

@@ -1,16 +1,32 @@
-from psychopy import visual, monitors, core, event, data, gui, parallel
-from psychopy.tools.filetools import fromFile, toFile
+'''
+Reinforcement learning - Working Memory
+
+Participants are presented with 12 trial blocks of a set of pictures (3-6 images per block).
+After viewing the set of images, participants are instructed to choose between 3 keys (j, k, l) for a single image presented.
+Each image has a corresponding key that will earn points (0, 1 or 2 points).
+Participants must try to learn which key corresponds with each image to obtain the maximum number of points.
+At the end of the 12 blocks, participants are presented with two images, each from a different block, and tasked with choosing the image that earned more points.
+
+Note about payment:
+Currently the task is set up to pay up to $11 to participants based on the number of points they earned.
+This can easily be removed from the script if the experimenter so chooses
+
+'''
+# Import
+from psychopy import visual, monitors, core, event, data, gui
 import pandas as pd
 import numpy as np
-import os, json
+import os
+
+# Set seed for randomization.
+# In this task, no consistent seed was used by CNTRACS (unlike in the WM and EM tasks)
+seed = int(np.random.uniform(1, 1000000))
 
 ## Verify particulars of this session
 sessionInfo = {
     'Participant'   :   '---',
-    'Group'         :   '',
     'Date'          :   data.getDateStr(),
-    'Session'       :   ['', '1', '2'],
-    'Seed'          :   core.getAbsTime(),
+    'Seed'          :   seed,
     'TaskFile'      :   os.path.basename(__file__),
     'local_path'    :   os.getcwd(),
     'set_id'        :   np.random.randint(1, 10),
@@ -19,7 +35,7 @@ sessionInfo = {
     'feedbackDelay' :   0.5,
     'feedbackDuration': 1.0,
     'trainITI'      :   1.0,
-    'testITI'       :   1.0 # changed from 1.5
+    'testITI'       :   1.0 
     }
 
 ## Define a monitor
@@ -32,18 +48,10 @@ my_monitor.saveMon()
 dlg = gui.DlgFromDict(
     sessionInfo,
     title='RLWMPST',
-    fixed=['Date','Seed','TaskFile','local_path','set_id','task_id','responseWindow','feedbackDelay','feedbackDuration','trainITI','testITI','Group'],
-    order=['Participant','Session','Date','Seed','TaskFile','local_path','set_id','task_id','responseWindow','feedbackDelay','feedbackDuration','trainITI','testITI']
+    fixed=['Date','Seed','TaskFile','local_path','set_id','task_id','responseWindow','feedbackDelay','feedbackDuration','trainITI','testITI'],
+    order=['Participant','Date','Seed','TaskFile','local_path','set_id','task_id','responseWindow','feedbackDelay','feedbackDuration','trainITI','testITI']
     )
 
-## Check if session number is filled in with a number, quit if not
-while True:
-    try:
-        sessionInfo['Session'] = int(sessionInfo['Session'])
-        break
-    except ValueError:
-        print("Please enter a session number!")
-        core.quit()
 
 if dlg.OK:
     ## Create a visual window:
@@ -65,158 +73,10 @@ if dlg.OK:
     loadingScreen.draw()
     mywin.flip()
     mouse = event.Mouse(visible = True, win = mywin)
-    #clock = core.Clock() moved to 250 code (roughly recording onset)
 else:
     core.quit()  # the user hit cancel so exit
 
-def save_data():
-    savingScreen = visual.TextStim(
-        win=mywin,
-        autoLog=False,
-        text="Thank you for participating!\n\nSaving to file..."
-        )
-    savingScreen.setAutoDraw(True)
-    savingScreen.draw()
-    mywin.flip()
-    ## create the datafile
-    practiceTrials.saveAsExcel(
-        fileName=sessionInfo['TaskFile'][:-3]+"_practice_"+sessionInfo['Date']+"_"+sessionInfo['Participant']+'_TRT_'+str(sessionInfo['Session'])+'.csv',
-        sheetName = sessionInfo['Participant']+"_"+sessionInfo['Date'],
-        stimOut=[
-            'Participant',
-            'Group',
-            'Date',
-            'Session',
-            'Seed',
-            'set_id',
-            'responseWindow',
-            'feedbackDelay',
-            'feedbackDuration',
-            'trainITI',
-            'testITI',
-            'blockType',
-            'blockNumber',
-            'trialNumber',
-            'trialSetSize',
-            'trialStimFolder',
-            'trialStimID',
-            'trialStimInBlockID',
-            'trialStimOverallID',
-            'trialCorrectKey',
-            'trialCorrectProb',
-            'trialCorrectFBVal',
-            'trialSetSize_Left',
-            'trialSetSize_Right',
-            'trialStimBlockNum_Left',
-            'trialStimBlockNum_Right',
-            'trialStimFolder_Left',
-            'trialStimFolder_Right',
-            'trialStimID_Left',
-            'trialStimID_Right',
-            'trialStimOverallID_Left',
-            'trialStimOverallID_Right',
-            'trialCorrectProb_Left',
-            'trialCorrectProb_Right',
-            'trialOnset',
-            'resp',
-            'respACC',
-            'respKey',
-            'respRT'
-        ]
-    )
-    trainingTrials.saveAsExcel(
-        fileName=sessionInfo['TaskFile'][:-3]+"_training_"+sessionInfo['Date']+"_"+sessionInfo['Participant']+'_TRT_'+str(sessionInfo['Session'])+'.csv',
-        sheetName = sessionInfo['Participant']+"_"+sessionInfo['Date'],
-        stimOut=[
-            'Participant',
-            'Group',
-            'Date',
-            'Session',
-            'Seed',
-            'set_id',
-            'responseWindow',
-            'feedbackDelay',
-            'feedbackDuration',
-            'trainITI',
-            'testITI',
-            'blockType',
-            'blockNumber',
-            'trialNumber',
-            'trialSetSize',
-            'trialStimFolder',
-            'trialStimID',
-            'trialStimInBlockID',
-            'trialStimOverallID',
-            'trialCorrectKey',
-            'trialCorrectProb',
-            'trialCorrectFBVal',
-            'trialSetSize_Left',
-            'trialSetSize_Right',
-            'trialStimBlockNum_Left',
-            'trialStimBlockNum_Right',
-            'trialStimFolder_Left',
-            'trialStimFolder_Right',
-            'trialStimID_Left',
-            'trialStimID_Right',
-            'trialStimOverallID_Left',
-            'trialStimOverallID_Right',
-            'trialCorrectProb_Left',
-            'trialCorrectProb_Right',
-            'trialOnset',
-            'resp',
-            'respACC',
-            'respKey',
-            'respRT',
-            'totalPoints'
-        ]
-    )
-    testTrials.saveAsExcel(
-        fileName=sessionInfo['TaskFile'][:-3]+"_test_"+sessionInfo['Date']+"_"+sessionInfo['Participant']+'_TRT_'+str(sessionInfo['Session'])+'.csv',
-        sheetName = sessionInfo['Participant']+"_"+sessionInfo['Date'],
-        stimOut=[
-            'Participant',
-            'Group',
-            'Date',
-            'Session',
-            'Seed',
-            'set_id',
-            'responseWindow',
-            'feedbackDelay',
-            'feedbackDuration',
-            'trainITI',
-            'testITI',
-            'blockType',
-            'blockNumber',
-            'trialNumber',
-            'trialSetSize',
-            'trialStimFolder',
-            'trialStimID',
-            'trialStimInBlockID',
-            'trialStimOverallID',
-            'trialCorrectKey',
-            'trialCorrectProb',
-            'trialCorrectFBVal',
-            'trialSetSize_Left',
-            'trialSetSize_Right',
-            'trialStimBlockNum_Left',
-            'trialStimBlockNum_Right',
-            'trialStimFolder_Left',
-            'trialStimFolder_Right',
-            'trialStimID_Left',
-            'trialStimID_Right',
-            'trialStimOverallID_Left',
-            'trialStimOverallID_Right',
-            'trialCorrectProb_Left',
-            'trialCorrectProb_Right',
-            'trialOnset',
-            'resp',
-            'respACC',
-            'respKey',
-            'respRT'
-        ]
-    )
-    #mywin.close()
-    #core.quit()
+
 
 # routes to a folder (s_1 thru S_11) in the V4 folder to load trial orders
 base_path = os.path.join(sessionInfo['local_path'], 'rlwmpst', 'V{}'.format(sessionInfo['task_id']), 'S_{}'.format(sessionInfo['set_id']))
@@ -228,6 +88,8 @@ test_trials = pd.read_csv(os.path.join(base_path, 'test.csv'), index_col=0)
 jCode = 13
 kCode = 14
 lCode = 15
+
+## make trial lists
 
 blockList=[]
 for block in list(range(0,len(train_instruction_trials))):
@@ -252,9 +114,7 @@ for x in list(range(0,10)):
         correctKey = 'l'
     pracList.append({
         'Participant'       :   sessionInfo['Participant'],
-        'Group'             :   '',
         'Date'              :   sessionInfo['Date'],
-        'Session'           :   sessionInfo['Session'],
         'Seed'              :   sessionInfo['Seed'],
         'set_id'            :   sessionInfo['set_id'],
         'responseWindow'    :   sessionInfo['responseWindow'],
@@ -285,7 +145,7 @@ for x in list(range(0,10)):
         'trialStimOverallID_Right'  :   'NA',
         'trialCorrectProb_Left'     :   'NA',
         'trialCorrectProb_Right'    :   'NA',
-        'trialOnset'        :   0, #not yet set
+        'trialOnset'        :   0, # these not yet set
         'resp'              :   0,
         'respACC'           :   0,
         'respKey'           :   '?',
@@ -303,9 +163,7 @@ for x in list(range(0,len(train_trials))):
    
     trainList.append({
         'Participant'       :   sessionInfo['Participant'],
-        'Group'             :   '',
         'Date'              :   sessionInfo['Date'],
-        'Session'           :   sessionInfo['Session'],
         'Seed'              :   sessionInfo['Seed'],
         'set_id'            :   sessionInfo['set_id'],
         'responseWindow'    :   sessionInfo['responseWindow'],
@@ -348,9 +206,7 @@ testList = []
 for x in list(range(0,len(test_trials))):
     testList.append({
         'Participant'       :   sessionInfo['Participant'],
-        'Group'             :   '',
         'Date'              :   sessionInfo['Date'],
-        'Session'           :   sessionInfo['Session'],
         'Seed'              :   sessionInfo['Seed'],
         'set_id'            :   sessionInfo['set_id'],
         'responseWindow'    :   sessionInfo['responseWindow'],
@@ -408,7 +264,151 @@ testTrials = data.TrialHandler(
     dataTypes=[]
     )
 
-loadingScreen.setAutoDraw(False)
+# Save function
+def save_data():
+    savingScreen = visual.TextStim(
+        win=mywin,
+        autoLog=False,
+        text="Thank you for participating!\n\nSaving to file..."
+        )
+    savingScreen.setAutoDraw(True)
+    savingScreen.draw()
+    mywin.flip()
+    ## create the datafile
+    practiceTrials.saveAsExcel(
+        fileName=sessionInfo['TaskFile'][:-3]+"_practice_"+sessionInfo['Date']+"_"+sessionInfo['Participant']+'_TRT_'+str(sessionInfo['Session'])+'.csv',
+        sheetName = sessionInfo['Participant']+"_"+sessionInfo['Date'],
+        stimOut=[
+            'Participant',
+            'Date',
+            'Seed',
+            'set_id',
+            'responseWindow',
+            'feedbackDelay',
+            'feedbackDuration',
+            'trainITI',
+            'testITI',
+            'blockType',
+            'blockNumber',
+            'trialNumber',
+            'trialSetSize',
+            'trialStimFolder',
+            'trialStimID',
+            'trialStimInBlockID',
+            'trialStimOverallID',
+            'trialCorrectKey',
+            'trialCorrectProb',
+            'trialCorrectFBVal',
+            'trialSetSize_Left',
+            'trialSetSize_Right',
+            'trialStimBlockNum_Left',
+            'trialStimBlockNum_Right',
+            'trialStimFolder_Left',
+            'trialStimFolder_Right',
+            'trialStimID_Left',
+            'trialStimID_Right',
+            'trialStimOverallID_Left',
+            'trialStimOverallID_Right',
+            'trialCorrectProb_Left',
+            'trialCorrectProb_Right',
+            'trialOnset',
+            'resp',
+            'respACC',
+            'respKey',
+            'respRT'
+        ]
+    )
+    trainingTrials.saveAsExcel(
+        fileName=sessionInfo['TaskFile'][:-3]+"_training_"+sessionInfo['Date']+"_"+sessionInfo['Participant']+'_TRT_'+str(sessionInfo['Session'])+'.csv',
+        sheetName = sessionInfo['Participant']+"_"+sessionInfo['Date'],
+        stimOut=[
+            'Participant',
+            'Date',
+            'Seed',
+            'set_id',
+            'responseWindow',
+            'feedbackDelay',
+            'feedbackDuration',
+            'trainITI',
+            'testITI',
+            'blockType',
+            'blockNumber',
+            'trialNumber',
+            'trialSetSize',
+            'trialStimFolder',
+            'trialStimID',
+            'trialStimInBlockID',
+            'trialStimOverallID',
+            'trialCorrectKey',
+            'trialCorrectProb',
+            'trialCorrectFBVal',
+            'trialSetSize_Left',
+            'trialSetSize_Right',
+            'trialStimBlockNum_Left',
+            'trialStimBlockNum_Right',
+            'trialStimFolder_Left',
+            'trialStimFolder_Right',
+            'trialStimID_Left',
+            'trialStimID_Right',
+            'trialStimOverallID_Left',
+            'trialStimOverallID_Right',
+            'trialCorrectProb_Left',
+            'trialCorrectProb_Right',
+            'trialOnset',
+            'resp',
+            'respACC',
+            'respKey',
+            'respRT',
+            'totalPoints'
+        ]
+    )
+    testTrials.saveAsExcel(
+        fileName=sessionInfo['TaskFile'][:-3]+"_test_"+sessionInfo['Date']+"_"+sessionInfo['Participant']+'_TRT_'+str(sessionInfo['Session'])+'.csv',
+        sheetName = sessionInfo['Participant']+"_"+sessionInfo['Date'],
+        stimOut=[
+            'Participant',
+            'Date',
+            'Seed',
+            'set_id',
+            'responseWindow',
+            'feedbackDelay',
+            'feedbackDuration',
+            'trainITI',
+            'testITI',
+            'blockType',
+            'blockNumber',
+            'trialNumber',
+            'trialSetSize',
+            'trialStimFolder',
+            'trialStimID',
+            'trialStimInBlockID',
+            'trialStimOverallID',
+            'trialCorrectKey',
+            'trialCorrectProb',
+            'trialCorrectFBVal',
+            'trialSetSize_Left',
+            'trialSetSize_Right',
+            'trialStimBlockNum_Left',
+            'trialStimBlockNum_Right',
+            'trialStimFolder_Left',
+            'trialStimFolder_Right',
+            'trialStimID_Left',
+            'trialStimID_Right',
+            'trialStimOverallID_Left',
+            'trialStimOverallID_Right',
+            'trialCorrectProb_Left',
+            'trialCorrectProb_Right',
+            'trialOnset',
+            'resp',
+            'respACC',
+            'respKey',
+            'respRT'
+        ]
+    )
+# end save function
+
+
+
 
 intro_text = visual.TextStim(
     win = mywin,
@@ -568,6 +568,8 @@ forwardButton = visual.ImageStim(
 backButton.size     *= [1,0.5]
 forwardButton.size  *= [1,0.5]
 
+loadingScreen.setAutoDraw(False)
+
 mywin.flip()
 clock = core.Clock() #start global clock
 
@@ -724,7 +726,7 @@ for trial in practiceTrials:
     noResponseText.setAutoDraw(False)
     mywin.flip()
 
-# # say practice is over
+# practice is over
 intro_text.setText(
     'End of practice, do you have any questions?\n\n'
     '       [Press space to continue.]'
@@ -988,5 +990,7 @@ mywin.flip()
 allKeys = event.waitKeys()
 testInstructions.setAutoDraw(False)
 
+# END
 save_data()
+core.wait(2)
 core.quit()
