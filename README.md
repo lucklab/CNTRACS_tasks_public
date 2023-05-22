@@ -1,16 +1,20 @@
-# Tasks for phase 3 of the CNTRACS consortium
-*currently in the process of adding/changing information here... 
+# In-person, behavioral tasks for phase 3 of the CNTRACS consortium
 
 This repository contains PsychoPy scripts for most of the tasks used in phase three of the CNTRACS grant.
 These versions do not have an option to run with EEG event codes, but those versions are available upon request.
 
 ### Technical information
-###### Getting the task to run
+###### Environment
 
-The tasks were written to work in Windows 10 and a newer version of PsychoPy (>3.2).
+The tasks were written and tested to work in Windows 10 and versions of PsychoPy from the year 2019/2020, when our data collection for these tasks began.
+We are not actively maintaining these tasks to work on other operating systems or newer versions of PsychoPy, however most or all of the code should still work in other enviroments with a little troubleshooting.
+
+If you wish to use the latest version of PsychoPy that these tasks were developed/tested in, it can be downloaded [here.](https://github.com/psychopy/psychopy/releases/tag/2020.2.10)
+
+###### Set up
 
 Each task has its own folder, and each has supplementary files such as images.
-In any case, each task is designed to run right out of a downloaded copy of its folder. 
+Each task is designed to run right out of a downloaded copy of its folder. 
 
 The most straightfoward way to run these tasks is just to download or clone the entire repository, and then copy over the folder for the task you wish to run.
 The folder can be placed in any local directory, but the organization in that folder needs to stay the same.
@@ -19,6 +23,7 @@ Included with each task is a folder called "analysis_demo" which has a sample da
 This folder is not used by the PsychoPy scipt, so it can be moved or deleted.
 
 ###### Monitors 
+
 Default is 1920x1200px resolution - 52cm monitor width - 100cm viewing distance.
 
 *If this is not how your setup is, you need to set these parameters in each script (near the top of the script where it defines the monitor)* 
@@ -57,7 +62,7 @@ Particpants are presented with 8-trial blocks of pairings between picures and ba
 ##### [Reinforcement Learning](Reinforcement_Learning)
 Participants are presented with 12 trial blocks of a set of pictures (3-6 images per block). After viewing the set of images, participants are instructed to choose between 3 keys (j, k, l) for a single image presented. Each image has a corresponding key that will earn points (1 or 2 points). Participants must try to learn which key corresponds with each image to obtain the maximum number of points. At the end of the 12 blocks, participants are presented with two images, each from a different block, and tasked with choosing the image that earned more points.
 
-**Duration:** ~ UPDATE FOR SHORTER VERSION
+**Duration:** ~30-40 minutes
 
 **Behavioral input:** Keyboard (J/K/L, 1/0)
 
